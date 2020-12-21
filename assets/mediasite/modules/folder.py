@@ -15,7 +15,7 @@ class folder():
         self.mediasite = mediasite
         #self.gather_root_folder_id()
 
-    def gather_folders(self, parent_id=""):
+    def gather_folders(self, parent_id=None):
         """
         Gathers mediasite child folder name, ID, and parent ID listing from mediasite system
         based on provided parent mediasite folder ID
@@ -27,25 +27,26 @@ class folder():
             list of dictionary items containing child mediasite folder names, ID's, and parent folder ID's
         """
 
-        if parent_id == "":
-            parent_id = self.mediasite.model.get_root_parent_folder_id()
+        if not parent_id:
+            parent_id = self.gather_root_folder_id()
 
         ms_folders = []
 
         logging.info("Gathering Mediasite folders")
 
         #request existing (non-recycled) mediasite folder information based on parent folder ID provided to function
-        result = self.mediasite.api_client.request("get", "Folders", "$top=100&$filter=ParentFolderId eq '"+parent_id+"' and Recycled eq false","")
-
+        query_params = f"$filter=ParentFolderId eq '{parent_id}' and Recycled eq false"
+        result = self.mediasite.api_client.request("get", "Folders", query_params)
         if self.mediasite.experienced_request_errors(result):
             return result
         else:
             #for each item in the result create a dictionary with name, ID, and parent ID elements for reference
             for folder in result.json()["value"]:
-                ms_folders.append({"name":folder["Name"],
-                                            "id":folder["Id"],
-                                            "parent_id":folder["ParentFolderId"]
-                                            })
+                ms_folders.append({
+                    "name": folder["Name"],
+                    "id": folder["Id"],
+                    "parent_id": folder["ParentFolderId"]
+                })
 
             #add the listing of folder data to the model for later use
             self.mediasite.model.set_folders(ms_folders, parent_id)
@@ -68,7 +69,7 @@ class folder():
         logging.info("Gathering Mediasite root folder id")
 
         #request mediasite folder information on the "Mediasite Users" folder
-        result = self.mediasite.api_client.request("get", "Folders", "$filter=Name eq 'Mediasite Users' and Recycled eq false","")
+        result = self.mediasite.api_client.request("get", "Folders", "$filter=Name eq 'Mediasite Users' and Recycled eq false")
 
         if self.mediasite.experienced_request_errors(result):
             return result
@@ -283,7 +284,7 @@ class folder():
         logging.info("Finding child Mediasite folders under parent: "+parent_id)
   
         result = self.mediasite.api_client.request("get", "Folders", "$top=100&$filter=ParentFolderId eq '"+parent_id+"' and Recycled eq false","")
-        
+
         if self.mediasite.experienced_request_errors(result) or int(result.json()["odata.count"]) <= 0:
             return result
         else:

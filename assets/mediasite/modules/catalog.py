@@ -58,7 +58,7 @@ class catalog():
 
         while total > skip:
 
-            result = self.mediasite.api_client.request("get", "Catalogs", "$top="+str(size)+"&$skip="+str(skip),"")
+            result = self.mediasite.api_client.request("get", "Catalogs")
             result_json = result.json()
             catalogs.extend(result_json["value"])
             total = int(result_json["odata.count"])
@@ -70,6 +70,16 @@ class catalog():
             return result
         else:
             return catalogs
+
+    def get_catalogs_presentations(self, catalog_id):
+        route = f'Catalogs/(\'{catalog_id}\')/Presentations'
+        result = self.mediasite.api_client.request('get', route)
+
+        if not self.mediasite.experienced_request_errors(result):
+            result = result.json()
+            if "odata.error" in result:
+                logging.error(result["odata.error"]["code"] + ": " + result["odata.error"]["message"]["value"] + ' Catalog ID :  ' + catalog_id)
+        return result
 
     def enable_catalog_downloads(self, catalog_id):
         """

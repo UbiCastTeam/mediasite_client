@@ -9,6 +9,8 @@ License: MIT - see license.txt
 
 import logging
 from urllib.parse import quote
+import json
+import os
 
 class presentation():
     def __init__(self, mediasite, *args, **kwargs):
@@ -24,28 +26,89 @@ class presentation():
         logging.info("Getting a list of all presentations")
 
         #request mediasite folder information on the "Mediasite Users" folder
-
-        count = 0
         current = 0
-        increment = 1000
-        maximum = 1000
-        result_list = []
+        increment = 50
+        presentations_list = []
 
-        while current < maximum:
-            result = self.mediasite.api_client.request("get", "Presentations", "$filter=Status eq 'Unavailable'&$skip="+str(increment*count)+"&$top="+str(increment)+"","")
-            result_json = result.json()
-            #print(result_json)
-            maximum = int(result_json["odata.count"])
-            current = increment*count
-            result_list += result_json["value"]
-            count += 1
+        # # test
+        # i = 0
+        next_page = f'$skip={str(current)}&$top={str(increment)}'
+        while next_page:
+            result = self.mediasite.api_client.request("get", "Presentations", next_page)
+            if self.mediasite.experienced_request_errors(result):
+                return result
+            elif "odata.error" in result:
+                logging.error(result["odata.error"]["code"] + ": " + result["odata.error"]["message"]["value"])
+                return result.json()
 
-        return result_list
+            result = result.json()
+            presentations_list.extend(result["value"])
+            next_link = result.get('odata.nextLink')
+            next_page = next_link.split('?')[-1] if next_link else None
+            # # test
+            # i += 1
+            # if i > 1:
+            #     break
+
+        return presentations_list
+
+    def get_all_presentations_content(self, resource_content=None):
+        """
+        Gathers a listing of the specified content of all presentations.
+
+        params:
+            content: content requested; all contents (video and slides) if not specified.
+                (example: OnDemandContent, SlideDetailsContent, ...)
+        returns:
+            list of resulting responses from the mediasite web api request
+        """
+
+        logging.info('Getting all presentations content : ' + resource_content)
+
+        presentations_list = self.get_all_presentations()
+        content_list = []
+        current = 0
+        for presentation in presentations_list:
+            # Printing progression
+            print('Requesting content : ', current, '/', len(presentations_list), end='\r', flush=True)
+
+            content = self.get_presentation_by_id(presentation['Id'], resource_content)
+            content_list.append(content)
+            current += 1
+        return content_list
+
+    def get_presentation_by_id(self, presentation_id, options=None):
+        """
+        Gets mediasite presentation given presentation guid
+
+        params:
+            presentation_id: guid of a mediasite presentation
+            options: specific resource of the presentation
+
+        returns:
+            resulting response from the mediasite web api request
+        """
+        route = f'Presentations(\'{presentation_id}\')/{options}'
+        result = self.mediasite.api_client.request("get", route)
+        if not self.mediasite.experienced_request_errors(result):
+            result = result.json()
+            if "odata.error" in result and result['odata.error']['code'] != 'NavigationPropertyNull':
+                logging.error(result["odata.error"]["code"] + ": " + result["odata.error"]["message"]["value"] + ' -> ' + presentation_id)
+        return result
+
+    def get_number_of_presentations(self):
+        next_page = '$skip=0&$top=1'
+        result = self.mediasite.api_client.request("get", "Presentations", next_page)
+        if not self.mediasite.experienced_request_errors(result):
+            result = result.json()
+            if "odata.error" in result:
+                logging.error(result["odata.error"]["code"] + ": " + result["odata.error"]["message"]["value"])
+        return int(result['odata.count'])
 
     def get_presentations_by_name(self, name_search_query):
         """
         Gets presentations by name using provided name_search_querys
-        
+
         params:
             template_name: name of the template to be found within mediasite
 
@@ -57,20 +120,20 @@ class presentation():
 
         #request mediasite folder information on the "Mediasite Users" folder
         result = self.mediasite.api_client.request("get", "Search", "search='"+name_search_query+"'&searchtype=Presentation","")
-        
+
         if self.mediasite.experienced_request_errors(result):
             return result
         else:
             #if there is an error, log it
             if "odata.error" in result:
-                logging.error(result["odata.error"]["code"]+": "+result["odata.error"]["message"]["value"])
+                logging.error(result["odata.error"]["code"] + ": " + result["odata.error"]["message"]["value"])
 
             return result
 
     def delete_presentation(self, presentation_id):
         """
         Deletes mediasite presentation given presentation guid
-        
+
         params:
             presentation_id: guid of a mediasite presentation
 
@@ -78,17 +141,17 @@ class presentation():
             resulting response from the mediasite web api request
         """
 
-        logging.info("Deleting Mediasite presentation: "+presentation_id)
+        logging.info("Deleting Mediasite presentation: " + presentation_id)
 
         #request mediasite folder information on the "Mediasite Users" folder
-        result = self.mediasite.api_client.request("delete", "Presentations('"+presentation_id+"')", "","")
-        
+        result = self.mediasite.api_client.request("delete", "Presentations('presentation_id')")
+
         if self.mediasite.experienced_request_errors(result):
             return result
         else:
             #if there is an error, log it
             if "odata.error" in result:
-                logging.error(result["odata.error"]["code"]+": "+result["odata.error"]["message"]["value"])
+                logging.error(result["odata.error"]["code"] + ": " + result["odata.error"]["message"]["value"])
 
             return result
 
