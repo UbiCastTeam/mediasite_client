@@ -77,23 +77,34 @@ class presentation():
             current += 1
         return content_list
 
-    def get_presentation_by_id(self, presentation_id, options=None):
+    def get_presentation_by_id(self, presentation_id, content=None):
         """
         Gets mediasite presentation given presentation guid
 
         params:
             presentation_id: guid of a mediasite presentation
-            options: specific resource of the presentation
+            content: specific content resource of the presentation
 
         returns:
             resulting response from the mediasite web api request
         """
-        route = f'Presentations(\'{presentation_id}\')/{options}'
+
+        debug_message = 'Getting the presentation.'
+        if content:
+            debug_message += f'Content: {content}.'
+        debug_message += f'ID: {presentation_id}'
+        logging.debug(debug_message)
+
+        route = f'Presentations(\'{presentation_id}\')/{content}'
         result = self.mediasite.api_client.request("get", route)
         if not self.mediasite.experienced_request_errors(result):
             result = result.json()
-            if "odata.error" in result and result['odata.error']['code'] != 'NavigationPropertyNull':
-                logging.error(result["odata.error"]["code"] + ": " + result["odata.error"]["message"]["value"] + ' -> ' + presentation_id)
+            if "odata.error" in result:
+                if result['odata.error']['code'] == 'NavigationPropertyNull':
+                    logging.warning('Wrong navigation property or content doesn\'t exist for this presentation: ' + content + '. ID: ' + presentation_id)
+                    return None
+                else:
+                    logging.error(result["odata.error"]["code"] + ": " + result["odata.error"]["message"]["value"] + ' -> ' + presentation_id)
         return result
 
     def get_number_of_presentations(self):

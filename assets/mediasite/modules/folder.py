@@ -281,7 +281,7 @@ class folder():
             list of child folder id's associated with the given parent folder id
         """
 
-        logging.info("Finding child Mediasite folders under parent: "+parent_id)
+        logging.debug("Finding child Mediasite folders under parent: "+parent_id)
   
         result = self.mediasite.api_client.request("get", "Folders", "$top=100&$filter=ParentFolderId eq '"+parent_id+"' and Recycled eq false","")
 
