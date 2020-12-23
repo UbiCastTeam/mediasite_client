@@ -89,13 +89,18 @@ class controller():
         returns:
             true if errors were experienced, false if no errors experienced
         """
-
-        if type(request_result) is str:
-            logging.error(request_result)
-            self.model.set_current_connection_valid(False)
-            return True
-        else:
+        if request_result.status_code < 300:
             return False
+        else:
+            try:
+                result = request_result.json()
+                logging.error(result['odata.error']['code'] + ': ' + result['odata.error']['message']['value'])
+            except ValueError:
+                print('coucou')
+                logging.error(f'No JSON response: {request_result.status_code} ')
+
+                self.model.set_current_connection_valid(False)
+            return True
 
     def wait_for_job_to_complete(self, job_link_url):
         """
