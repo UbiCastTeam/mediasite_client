@@ -30,8 +30,6 @@ class presentation():
         increment = 50
         presentations_list = []
 
-        # # test
-        # i = 0
         next_page = f'$skip={str(current)}&$top={str(increment)}'
         while next_page:
             result = self.mediasite.api_client.request("get", "Presentations", next_page)
@@ -45,10 +43,6 @@ class presentation():
             presentations_list.extend(result["value"])
             next_link = result.get('odata.nextLink')
             next_page = next_link.split('?')[-1] if next_link else None
-            # # test
-            # i += 1
-            # if i > 1:
-            #     break
 
         return presentations_list
 
@@ -77,6 +71,15 @@ class presentation():
             current += 1
         return content_list
 
+    def get_number_of_presentations(self):
+        next_page = '$skip=0&$top=1'
+        result = self.mediasite.api_client.request("get", "Presentations", next_page)
+        if not self.mediasite.experienced_request_errors(result):
+            result = result.json()
+            if "odata.error" in result:
+                logging.error(result["odata.error"]["code"] + ": " + result["odata.error"]["message"]["value"])
+        return int(result['odata.count'])
+
     def get_presentation_by_id(self, presentation_id, content=None):
         """
         Gets mediasite presentation given presentation guid
@@ -96,25 +99,21 @@ class presentation():
         logging.debug(debug_message)
 
         route = f'Presentations(\'{presentation_id}\')/{content}'
-        result = self.mediasite.api_client.request("get", route)
-        if not self.mediasite.experienced_request_errors(result):
+        result = self.mediasite.api_client.request('get', route)
+        if not self.mediasite.experienced_request_errors(result, allowed_status=404):
             result = result.json()
-            if "odata.error" in result:
-                if result['odata.error']['code'] == 'NavigationPropertyNull':
-                    logging.warning('Wrong navigation property or content doesn\'t exist for this presentation: ' + content + '. ID: ' + presentation_id)
+            if 'odata.error' in result:
+                # catch error when there is no slide content so as to prevent flooding logs
+                if result['odata.error']['code'] == 'NavigationPropertyNull' and content == 'SlideDetailsContent':
+                    logging.debug('No slide for this presentation: ' + presentation_id)
                     return None
                 else:
-                    logging.error(result["odata.error"]["code"] + ": " + result["odata.error"]["message"]["value"] + ' -> ' + presentation_id)
-        return result
+                    self.mediasite.experienced_request_errors(result)
+            else:
+                return result
 
-    def get_number_of_presentations(self):
-        next_page = '$skip=0&$top=1'
-        result = self.mediasite.api_client.request("get", "Presentations", next_page)
-        if not self.mediasite.experienced_request_errors(result):
-            result = result.json()
-            if "odata.error" in result:
-                logging.error(result["odata.error"]["code"] + ": " + result["odata.error"]["message"]["value"])
-        return int(result['odata.count'])
+        logging.error('Presentation ID: ' + presentation_id)
+        return None
 
     def get_presentations_by_name(self, name_search_query):
         """

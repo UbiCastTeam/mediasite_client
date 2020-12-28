@@ -79,7 +79,7 @@ class controller():
             self.model.set_current_connection_valid(True)
             return True
 
-    def experienced_request_errors(self, request_result):
+    def experienced_request_errors(self, request_result, allowed_status=int()):
         """
         Checks for errors experienced from web_api Python requests.
 
@@ -89,7 +89,7 @@ class controller():
         returns:
             true if errors were experienced, false if no errors experienced
         """
-        if request_result.status_code < 300:
+        if request_result.status_code < 300 or request_result.status_code == allowed_status:
             return False
         else:
             try:

@@ -8,12 +8,13 @@ License: MIT - see license.txt
 """
 
 import logging
-from urllib.parse import quote
+import math
+
 
 class folder():
     def __init__(self, mediasite, *args, **kwargs):
         self.mediasite = mediasite
-        #self.gather_root_folder_id()
+        self.root_folder_id = self.get_root_folder_id()
 
     def gather_folders(self, parent_id=None):
         """
@@ -28,7 +29,7 @@ class folder():
         """
 
         if not parent_id:
-            parent_id = self.gather_root_folder_id()
+            parent_id = self.root_folder_id
 
         ms_folders = []
 
@@ -53,7 +54,7 @@ class folder():
 
             return ms_folders
 
-    def gather_root_folder_id(self):
+    def get_root_folder_id(self):
         """
         Gathers mediasite root folder ID for use with other functions.
 
@@ -174,7 +175,7 @@ class folder():
     def get_presentations_and_schedules_by_parent_folder_name(self, folder_name):
         """
         Gathers schedules and presentations found under one parent folder, searching each child folder underneath
-        
+
         params:
             folder_name: name of the mediasite folder
 
@@ -215,7 +216,7 @@ class folder():
         Note: this makes use of the "schedules" Mediasite API calls as no related "folders" call exists at this time.
         """
 
-        logging.info("Finding Mediasite presentatations under parent: "+parent_id)
+        logging.info("Finding Mediasite presentations under parent: "+parent_id)
 
         result = self.mediasite.api_client.request("get", "Schedules", "$top=100&$filter=FolderId eq '"+parent_id+"'","")
         
@@ -224,26 +225,33 @@ class folder():
         else:
             return result
 
-    def get_folder_presentations(self, parent_id):
+    def get_folder_presentations(self, parent_id, all_data=False):
         """
         Gathers presentations found under mediasite folder given folder's id
-        
+
         params:
             parent_id: id of mediasite folder
+            all_data: having all web api response
 
         returns:
-            details of presentations found within mediasite folder
+            details of presentations found within mediasite folder,
+            only id and title if all_data is disabled
+
         """
 
-        logging.info("Finding Mediasite presentatations under parent: "+parent_id)
+        logging.info("Finding Mediasite presentations under parent: " + parent_id)
 
-        result = self.mediasite.api_client.request("get", "Folders('"+parent_id+"')/Presentations", "$top=100","")
-        
-        if self.mediasite.experienced_request_errors(result):
-            return result
-        else:
-
-            return result
+        folder_presentations = []
+        result = self.mediasite.api_client.request("get", f"Folders(\'{parent_id}\')/Presentations")
+        if not self.mediasite.experienced_request_errors(result):
+            result = result.json()
+            folder_presentations = result['value']
+            if not all_data:
+                folder_presentations = [{'id': presentation['Id'],
+                                         'title': presentation['Title'],
+                                         'owner': presentation['RootOwner']}
+                                        for presentation in folder_presentations]
+        return folder_presentations
 
     def get_folder_catalogs(self, parent_id):
         """
@@ -335,6 +343,45 @@ class folder():
 
         else:
             return result
+
+    def get_all_folders(self):
+        """
+        Gathers all mediasite folders name, ID, and parent ID listing from mediasite system
+
+        returns:
+            list of dictionary items containing mediasite folder names, ID's, and parent folder ID's
+        """
+
+        logging.info("Gathering all Mediasite folders")
+
+        increment = 500
+        folders = []
+
+        # getting folders
+        request_count = 0
+        next_page = f'$skip=0&$top={increment}&$filter=Recycled eq false'
+        while next_page:
+            result = self.mediasite.api_client.request('get', 'Folders', next_page)
+            if not self.mediasite.experienced_request_errors(result):
+                result = result.json()
+                # progression
+                request_count += 1
+                total_loops = math.ceil(int(result.get("odata.count", 0)) / increment)
+                print(f'Requesting: {request_count} / {total_loops}', end='\r', flush=True)
+
+                for folder in result['value']:
+                    folder_info = {
+                        'id': folder['Id'],
+                        'name': folder['Name'],
+                        'parent_id': folder['ParentFolderId']
+                    }
+                    folders.append(folder_info)
+                next_link = result.get('odata.nextLink')
+                next_page = next_link.split('?')[-1] if next_link else None
+
+        #add the listing of folder data to the model for later use
+        self.mediasite.model.set_folders(folders)
+        return folders
 
     def parse_and_create_folders(self, folders, parent_id=""):
         """
