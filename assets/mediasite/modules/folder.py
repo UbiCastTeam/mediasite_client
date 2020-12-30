@@ -8,7 +8,6 @@ License: MIT - see license.txt
 """
 
 import logging
-import math
 
 
 class folder():
@@ -235,11 +234,11 @@ class folder():
 
         returns:
             details of presentations found within mediasite folder,
-            only id and title if all_data is disabled
+            only id, title, and owner if all_data is disabled
 
         """
 
-        logging.info("Finding Mediasite presentations under parent: " + parent_id)
+        logging.debug("Finding Mediasite presentations under parent: " + parent_id)
 
         folder_presentations = []
         result = self.mediasite.api_client.request("get", f"Folders(\'{parent_id}\')/Presentations")
@@ -349,7 +348,7 @@ class folder():
         Gathers all mediasite folders name, ID, and parent ID listing from mediasite system
 
         returns:
-            list of dictionary items containing mediasite folder names, ID's, and parent folder ID's
+            list of dictionary items containing mediasite folder names, owner, ID's and parent folder ID's
         """
 
         logging.info("Gathering all Mediasite folders")
@@ -358,22 +357,17 @@ class folder():
         folders = []
 
         # getting folders
-        request_count = 0
         next_page = f'$skip=0&$top={increment}&$filter=Recycled eq false'
         while next_page:
             result = self.mediasite.api_client.request('get', 'Folders', next_page)
             if not self.mediasite.experienced_request_errors(result):
                 result = result.json()
-                # progression
-                request_count += 1
-                total_loops = math.ceil(int(result.get("odata.count", 0)) / increment)
-                print(f'Requesting: {request_count} / {total_loops}', end='\r', flush=True)
-
                 for folder in result['value']:
                     folder_info = {
-                        'id': folder['Id'],
+                        'folder_id': folder['Id'],
+                        'parent_folder_id': folder['ParentFolderId'],
                         'name': folder['Name'],
-                        'parent_id': folder['ParentFolderId']
+                        'owner': folder['Owner']
                     }
                     folders.append(folder_info)
                 next_link = result.get('odata.nextLink')

@@ -100,20 +100,27 @@ class presentation():
 
         route = f'Presentations(\'{presentation_id}\')/{content}'
         result = self.mediasite.api_client.request('get', route)
-        if not self.mediasite.experienced_request_errors(result, allowed_status=404):
-            result = result.json()
-            if 'odata.error' in result:
-                # catch error when there is no slide content so as to prevent flooding logs
-                if result['odata.error']['code'] == 'NavigationPropertyNull' and content == 'SlideDetailsContent':
-                    logging.debug('No slide for this presentation: ' + presentation_id)
-                    return None
-                else:
-                    self.mediasite.experienced_request_errors(result)
-            else:
-                return result
 
-        logging.error('Presentation ID: ' + presentation_id)
-        return None
+        # allow 404 so as to catch it later
+        if self.mediasite.experienced_request_errors(result, allowed_status=404):
+            logging.error('Presentation ID: ' + presentation_id)
+            return None
+
+        data = result.json()
+        if 'odata.error' in result:
+            # catch error 404 when there is no slide content so as to prevent flooding logs
+            if data['odata.error']['code'] == 'NavigationPropertyNull' and content == 'SlideDetailsContent':
+                logging.debug('No slide for this presentation: ' + presentation_id)
+                return None
+            else:
+                # re-check for other errors with 404 not allowed
+                self.mediasite.experienced_request_errors(result)
+                return None
+        elif not self.mediasite.experienced_request_errors(result):
+            return data
+        else:
+            logging.error('Presentation ID: ' + presentation_id)
+            return None
 
     def get_presentations_by_name(self, name_search_query):
         """
