@@ -79,7 +79,7 @@ class controller():
             self.model.set_current_connection_valid(True)
             return True
 
-    def experienced_request_errors(self, request_result, allowed_status=int()):
+    def experienced_request_errors(self, request_result, allowed_status=-1):
         """
         Checks for errors experienced from web_api Python requests.
 
@@ -96,7 +96,6 @@ class controller():
                 result = request_result.json()
                 logging.error(result['odata.error']['code'] + ': ' + result['odata.error']['message']['value'])
             except ValueError:
-                print('coucou')
                 logging.error(f'No JSON response: {request_result.status_code} ')
 
                 self.model.set_current_connection_valid(False)

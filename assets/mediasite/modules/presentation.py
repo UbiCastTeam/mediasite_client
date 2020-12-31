@@ -1,8 +1,8 @@
 """
-Mediasite client class for presentation-sepcific actions
+Mediasite client class for presentation-specific actions
 
-Last modified: May 2018
-By: Dave Bunten
+Last modified: December 2020
+By: Nicolas Antunes
 
 License: MIT - see license.txt
 """
@@ -46,31 +46,6 @@ class presentation():
 
         return presentations_list
 
-    def get_all_presentations_content(self, resource_content=None):
-        """
-        Gathers a listing of the specified content of all presentations.
-
-        params:
-            content: content requested; all contents (video and slides) if not specified.
-                (example: OnDemandContent, SlideDetailsContent, ...)
-        returns:
-            list of resulting responses from the mediasite web api request
-        """
-
-        logging.info('Getting all presentations content : ' + resource_content)
-
-        presentations_list = self.get_all_presentations()
-        content_list = []
-        current = 0
-        for presentation in presentations_list:
-            # Printing progression
-            print('Requesting content : ', current, '/', len(presentations_list), end='\r', flush=True)
-
-            content = self.get_presentation_by_id(presentation['Id'], resource_content)
-            content_list.append(content)
-            current += 1
-        return content_list
-
     def get_number_of_presentations(self):
         next_page = '$skip=0&$top=1'
         result = self.mediasite.api_client.request("get", "Presentations", next_page)
@@ -98,29 +73,17 @@ class presentation():
         debug_message += f'ID: {presentation_id}'
         logging.debug(debug_message)
 
-        route = f'Presentations(\'{presentation_id}\')/{content}'
+        route = f'Presentations(\'{presentation_id}\')/'
         result = self.mediasite.api_client.request('get', route)
 
-        # allow 404 so as to catch it later
-        if self.mediasite.experienced_request_errors(result, allowed_status=404):
-            logging.error('Presentation ID: ' + presentation_id)
-            return None
-
-        data = result.json()
-        if 'odata.error' in result:
-            # catch error 404 when there is no slide content so as to prevent flooding logs
-            if data['odata.error']['code'] == 'NavigationPropertyNull' and content == 'SlideDetailsContent':
-                logging.debug('No slide for this presentation: ' + presentation_id)
-                return None
+        if not self.mediasite.experienced_request_errors(result):
+            data = result.json()
+            if "odata.error" in data:
+                logging.error(result["odata.error"]["code"] + ": " + result["odata.error"]["message"]["value"])
             else:
-                # re-check for other errors with 404 not allowed
-                self.mediasite.experienced_request_errors(result)
-                return None
-        elif not self.mediasite.experienced_request_errors(result):
-            return data
-        else:
-            logging.error('Presentation ID: ' + presentation_id)
-            return None
+                return data
+        logging.error('Presentation ID: ' + presentation_id)
+        return None
 
     def get_presentations_by_name(self, name_search_query):
         """
@@ -146,6 +109,66 @@ class presentation():
                 logging.error(result["odata.error"]["code"] + ": " + result["odata.error"]["message"]["value"])
 
             return result
+
+    def get_all_presentations_content(self, resource_content):
+        """
+        Gathers a listing of the specified content of all presentations.
+
+        params:
+            content: content requested
+        returns:
+            list of resulting responses from the mediasite web api request
+        """
+
+        logging.info('Getting all presentations content : ' + resource_content)
+
+        presentations_list = self.get_all_presentations()
+        content_list = []
+        current = 0
+        for presentation in presentations_list:
+            # Printing progression
+            print('Requesting content : ', current, '/', len(presentations_list), end='\r', flush=True)
+
+            content = self.get_presentation_by_id(presentation['Id'], resource_content)
+            content_list.append(content)
+            current += 1
+        return content_list
+
+    def get_presentation_content(self, presentation_id, resource_content):
+        """
+        Gets the presentation's specified content using its ID
+
+        params:
+            content: content requested; all contents (video and slides) if not specified.
+                (example: OnDemandContent, SlideDetailsContent, ...)
+        returns:
+            list of resulting responses from the mediasite web api request
+        """
+
+        logging.debug(f'Getting presentation content. Content: {resource_content}. ID: {presentation_id}')
+
+        route = f'Presentations(\'{presentation_id}\')/{resource_content}'
+        result = self.mediasite.api_client.request('get', route)
+
+        # allow 404 if slide request so as to catch it later
+        allowed_status = None
+        if resource_content == "SlideDetailsContent":
+            allowed_status = 404
+
+        if not self.mediasite.experienced_request_errors(result, allowed_status):
+            data = result.json()
+            if 'odata.error' in result:
+                # catch error 404 when there is no slide content so as to prevent flooding logs
+                if data['odata.error']['code'] == 'NavigationPropertyNull' and resource_content == 'SlideDetailsContent':
+                    logging.debug('No slide for this presentation: ' + presentation_id)
+                else:
+                    # re-check for others 404 errors
+                    self.mediasite.experienced_request_errors(result)
+            elif not self.mediasite.experienced_request_errors(result):
+                return data
+
+        logging.error('Presentation ID: ' + presentation_id)
+        return None
 
     def delete_presentation(self, presentation_id):
         """

@@ -1,8 +1,8 @@
 """
 Mediasite client class for folder-sepcific actions
 
-Last modified: May 2018
-By: Dave Bunten
+Last modified: December 2020
+By: Nicolas Antunes
 
 License: MIT - see license.txt
 """
@@ -364,8 +364,8 @@ class folder():
                 result = result.json()
                 for folder in result['value']:
                     folder_info = {
-                        'folder_id': folder['Id'],
-                        'parent_folder_id': folder['ParentFolderId'],
+                        'id': folder['Id'],
+                        'parent_id': folder['ParentFolderId'],
                         'name': folder['Name'],
                         'owner': folder['Owner']
                     }
