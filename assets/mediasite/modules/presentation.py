@@ -134,6 +134,32 @@ class presentation():
             current += 1
         return content_list
 
+    def get_content_server(self, content_server_id):
+        """
+        Gets mediasite content server given server guid
+
+        params:
+            content_server__id: guid of a mediasite content server
+
+        returns:
+            resulting response from the mediasite web api request
+        """
+
+        logging.debug(f'Getting the content server : {content_server_id}')
+
+        route = f'ContentServers(\'{content_server_id}\')/'
+        result = self.mediasite.api_client.request('get', route)
+
+        if not self.mediasite.experienced_request_errors(result):
+            data = result.json()
+            if "odata.error" in data:
+                logging.error(result["odata.error"]["code"] + ": " + result["odata.error"]["message"]["value"])
+            else:
+                logging.debug(data)
+                return data
+        logging.error('Content Server ID: ' + content_server_id)
+        return None
+
     def get_presentation_content(self, presentation_id, resource_content):
         """
         Gets the presentation's specified content using its ID
