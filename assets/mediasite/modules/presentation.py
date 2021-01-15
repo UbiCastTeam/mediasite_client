@@ -134,7 +134,7 @@ class presentation():
             current += 1
         return content_list
 
-    def get_content_server(self, content_server_id):
+    def get_content_server(self, content_server_id, slide=False):
         """
         Gets mediasite content server given server guid
 
@@ -147,15 +147,15 @@ class presentation():
 
         logging.debug(f'Getting the content server : {content_server_id}')
 
-        route = f'ContentServers(\'{content_server_id}\')/'
+        options = 'StorageEndpoint' if slide else ''
+        route = f'ContentServers(\'{content_server_id}\')/{options}'
         result = self.mediasite.api_client.request('get', route)
 
         if not self.mediasite.experienced_request_errors(result):
             data = result.json()
             if "odata.error" in data:
-                logging.error(result["odata.error"]["code"] + ": " + result["odata.error"]["message"]["value"])
+                logging.warning(result["odata.error"]["code"] + ": " + result["odata.error"]["message"]["value"])
             else:
-                logging.debug(data)
                 return data
         logging.error('Content Server ID: ' + content_server_id)
         return None
@@ -171,7 +171,7 @@ class presentation():
             list of resulting responses from the mediasite web api request
         """
 
-        logging.debug(f'Getting presentation content. Content: {resource_content}. ID: {presentation_id}')
+        logging.debug(f'Getting presentation content. Content: {resource_content}. Presentation ID: {presentation_id}')
 
         route = f'Presentations(\'{presentation_id}\')/{resource_content}'
         result = self.mediasite.api_client.request('get', route)
@@ -193,7 +193,7 @@ class presentation():
             elif not self.mediasite.experienced_request_errors(result):
                 return data
 
-        logging.error('Presentation ID: ' + presentation_id)
+        logging.warning('Presentation ID: ' + presentation_id)
         return None
 
     def delete_presentation(self, presentation_id):
