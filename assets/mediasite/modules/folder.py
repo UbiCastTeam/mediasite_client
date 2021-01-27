@@ -240,22 +240,32 @@ class folder():
 
         logging.debug("Finding Mediasite presentations under parent: " + parent_id)
 
+        increment = 10
         folder_presentations = []
-        result = self.mediasite.api_client.request("get", f"Folders(\'{parent_id}\')/Presentations")
-        if not self.mediasite.experienced_request_errors(result):
-            result = result.json()
-            folder_presentations = result['value']
-            if not all_data:
-                folder_presentations = [{'id': presentation['Id'],
-                                         'title': presentation['Title'],
-                                         'owner': presentation['RootOwner']}
-                                        for presentation in folder_presentations]
+
+        next_page = f'$skip=0&$top={increment}'
+        while next_page:
+            result = self.mediasite.api_client.request("get", f"Folders(\'{parent_id}\')/Presentations", next_page)
+            if not self.mediasite.experienced_request_errors(result):
+                result = result.json()
+                data = result['value']
+                if all_data:
+                    folder_presentations = data
+
+                else:
+                    folder_presentations.extend([{'id': presentation['Id'],
+                                                  'title': presentation['Title'],
+                                                  'owner': presentation['RootOwner']}
+                                                for presentation in data])
+                next_link = result.get('odata.nextLink')
+                next_page = next_link.split('?')[-1] if next_link else None
+
         return folder_presentations
 
     def get_folder_catalogs(self, parent_id):
         """
         Gathers presentations found under mediasite folder given folder's id
-        
+
         params:
             parent_id: id of mediasite folder
 

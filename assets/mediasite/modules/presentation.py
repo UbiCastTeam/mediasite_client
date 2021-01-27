@@ -16,7 +16,7 @@ class presentation():
     def __init__(self, mediasite, *args, **kwargs):
         self.mediasite = mediasite
 
-    def get_all_presentations(self):
+    def get_all_presentations(self, all_data=False):
         """
         Gathers a listing of all presentations.
 
@@ -40,7 +40,13 @@ class presentation():
                 return result.json()
 
             result = result.json()
-            presentations_list.extend(result["value"])
+            data = result['value']
+            if not all_data:
+                small_data = list()
+                for presentation in data:
+                    small_data.append({'id': presentation['Id'],'title': presentation['Title']})
+                data = small_data
+            presentations_list.extend(data)
             next_link = result.get('odata.nextLink')
             next_page = next_link.split('?')[-1] if next_link else None
 
