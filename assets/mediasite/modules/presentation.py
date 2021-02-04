@@ -27,7 +27,7 @@ class presentation():
 
         #request mediasite folder information on the "Mediasite Users" folder
         current = 0
-        increment = 50
+        increment = 500
         presentations_list = []
 
         next_page = f'$skip={str(current)}&$top={str(increment)}'
@@ -44,7 +44,7 @@ class presentation():
             if not all_data:
                 small_data = list()
                 for presentation in data:
-                    small_data.append({'id': presentation['Id'],'title': presentation['Title']})
+                    small_data.append({'id': presentation['Id'], 'title': presentation['Title']})
                 data = small_data
             presentations_list.extend(data)
             next_link = result.get('odata.nextLink')
