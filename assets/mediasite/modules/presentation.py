@@ -202,6 +202,33 @@ class presentation():
         logging.warning('Presentation ID: ' + presentation_id)
         return None
 
+    def get_content_encoding_settings(self, settings_id):
+        """
+        Gets the content encoding settings of a video content, given the settings id.
+
+        params:
+            settings: the ContentEncodingSettingsId of the video content
+        returns:
+            resulting response from the mediasite api
+        """
+
+        logging.debug(f'Getting content encoding settings. Settings ID: {settings_id}')
+
+        route = f'ContentEncodingSettings(\'{settings_id}\')'
+        result = self.mediasite.api_client.request('get', route)
+        if not self.mediasite.experienced_request_errors(result, allowed_status=400):
+            data = result.json()
+            if "odata.error" in data:
+                if data['odata.error']['code'] == 'InvalidKey':
+                    logging.debug('No encoding settings ID for this media.')
+                    logging.debug(data["odata.error"]["code"] + ": " + data["odata.error"]["message"]["value"])
+                else:
+                    logging.error(data["odata.error"]["code"] + ": " + data["odata.error"]["message"]["value"])
+            else:
+                return data
+        logging.debug(f'Content encoded settings ID: {settings_id}')
+        return None
+
     def delete_presentation(self, presentation_id):
         """
         Deletes mediasite presentation given presentation guid

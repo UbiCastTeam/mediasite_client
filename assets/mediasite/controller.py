@@ -96,7 +96,7 @@ class controller():
                 result = request_result.json()
                 if result['odata.error']['code'] == "NavigationPropertyNull":
                     return False
-                logging.error(result['odata.error']['code'] + ': ' + result['odata.error']['message']['value'])
+                logging.error(result['odata.error']['code'] + ': ' + result['odata.error']['message']['value'] + '. Status code: ' + str(request_result.status_code))
             except ValueError:
                 logging.error(f'No JSON response: {request_result.status_code} ')
 
