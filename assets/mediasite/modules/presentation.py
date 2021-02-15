@@ -27,7 +27,8 @@ class presentation():
 
         #request mediasite folder information on the "Mediasite Users" folder
         current = 0
-        increment = 500
+        # 1000 increment is usually the pre-configured maximum on Mediasite API
+        increment = 1000
         presentations_list = []
 
         next_page = f'$skip={str(current)}&$top={str(increment)}'

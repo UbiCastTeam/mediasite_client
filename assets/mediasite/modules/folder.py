@@ -14,6 +14,7 @@ class folder():
     def __init__(self, mediasite, *args, **kwargs):
         self.mediasite = mediasite
         self.root_folder_id = self.get_root_folder_id()
+        self.folders = list()
 
     def gather_folders(self, parent_id=None):
         """
@@ -240,7 +241,7 @@ class folder():
 
         logging.debug("Finding Mediasite presentations under parent: " + parent_id)
 
-        increment = 10
+        increment = 50
         folder_presentations = []
 
         next_page = f'$skip=0&$top={increment}'
@@ -363,29 +364,29 @@ class folder():
 
         logging.info("Gathering all Mediasite folders")
 
-        increment = 500
-        folders = []
+        if not self.folders:
+            increment = 500
+            folders = []
+            next_page = f'$skip=0&$top={increment}&$filter=Recycled eq false'
+            while next_page:
+                result = self.mediasite.api_client.request('get', 'Folders', next_page)
+                if not self.mediasite.experienced_request_errors(result):
+                    result = result.json()
+                    for folder in result['value']:
+                        folder_info = {
+                            'id': folder['Id'],
+                            'parent_id': folder['ParentFolderId'],
+                            'name': folder['Name'],
+                            'owner': folder['Owner']
+                        }
+                        folders.append(folder_info)
+                    next_link = result.get('odata.nextLink')
+                    next_page = next_link.split('?')[-1] if next_link else None
 
-        # getting folders
-        next_page = f'$skip=0&$top={increment}&$filter=Recycled eq false'
-        while next_page:
-            result = self.mediasite.api_client.request('get', 'Folders', next_page)
-            if not self.mediasite.experienced_request_errors(result):
-                result = result.json()
-                for folder in result['value']:
-                    folder_info = {
-                        'id': folder['Id'],
-                        'parent_id': folder['ParentFolderId'],
-                        'name': folder['Name'],
-                        'owner': folder['Owner']
-                    }
-                    folders.append(folder_info)
-                next_link = result.get('odata.nextLink')
-                next_page = next_link.split('?')[-1] if next_link else None
+            self.mediasite.model.set_folders(folders)
+            self.folders = folders
 
-        #add the listing of folder data to the model for later use
-        self.mediasite.model.set_folders(folders)
-        return folders
+        return self.folders
 
     def parse_and_create_folders(self, folders, parent_id=""):
         """

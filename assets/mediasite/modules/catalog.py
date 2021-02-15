@@ -9,9 +9,11 @@ License: MIT - see license.txt
 
 import logging
 
+
 class catalog():
     def __init__(self, mediasite, *args, **kwargs):
         self.mediasite = mediasite
+        self.catalogs = list()
 
     def delete_catalog(self, catalog_id):
         """
@@ -41,7 +43,7 @@ class catalog():
     def get_all_catalogs(self):
         """
         Gathers presentations found under mediasite folder given folder's id
-        
+
         params:
             parent_id: id of mediasite folder
 
@@ -51,25 +53,24 @@ class catalog():
 
         logging.info("Gathering all catalogs.")
 
-        catalogs = []
-        size = 100
-        total = 1
-        skip = 0
+        if not self.catalogs:
+            catalogs = []
+            size = 100
+            total = 1
+            skip = 0
 
-        while total > skip:
+            while total > skip:
+                result = self.mediasite.api_client.request("get", "Catalogs")
+                if not self.mediasite.experienced_request_errors(result):
+                    result_json = result.json()
+                    catalogs.extend(result_json["value"])
+                    total = int(result_json["odata.count"])
+                    skip += size
 
-            result = self.mediasite.api_client.request("get", "Catalogs")
-            result_json = result.json()
-            catalogs.extend(result_json["value"])
-            total = int(result_json["odata.count"])
-            skip += size
+            self.mediasite.model.set_catalogs(catalogs)
+            self.catalogs = catalogs
 
-        self.mediasite.model.set_catalogs(result_json["value"])
-
-        if self.mediasite.experienced_request_errors(result):
-            return result
-        else:
-            return catalogs
+        return self.catalogs
 
     def get_catalogs_presentations(self, catalog_id):
         route = f'Catalogs/(\'{catalog_id}\')/Presentations'
