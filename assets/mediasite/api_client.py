@@ -63,7 +63,7 @@ class client:
             "Accept": "application/json",
             "Authorization": self.get_basic_auth_header_value()
         }
-        
+
         try:
             if request_type == "get":
                 rsp = requests.get(url, headers=auth_values, verify=False)

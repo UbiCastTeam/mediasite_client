@@ -12,6 +12,7 @@ from urllib.parse import quote
 import json
 import os
 
+
 class presentation():
     def __init__(self, mediasite, *args, **kwargs):
         self.mediasite = mediasite
@@ -86,7 +87,7 @@ class presentation():
         if not self.mediasite.experienced_request_errors(result):
             data = result.json()
             if "odata.error" in data:
-                logging.error(result["odata.error"]["code"] + ": " + result["odata.error"]["message"]["value"])
+                logging.error(data["odata.error"]["code"] + ": " + data["odata.error"]["message"]["value"])
             else:
                 return data
         logging.error('Presentation ID: ' + presentation_id)

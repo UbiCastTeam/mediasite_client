@@ -23,6 +23,7 @@ import assets.mediasite.modules.folder as folder
 import assets.mediasite.modules.template as template
 import assets.mediasite.modules.report as report
 import assets.mediasite.modules.presentation as presentation
+import assets.mediasite.modules.content as content
 
 class controller():
     def __init__(self, config_data, *args, **kwargs):
@@ -42,6 +43,7 @@ class controller():
         self.template = template.template(self)
         self.report = report.report(self)
         self.presentation = presentation.presentation(self)
+        self.content = content.content(self)
 
     def create_api_client(self, config_data):
         """
