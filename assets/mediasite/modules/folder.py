@@ -225,7 +225,7 @@ class folder():
         else:
             return result
 
-    def get_folder_presentations(self, parent_id, all_data=False):
+    def get_folder_presentations(self, parent_id):
         """
         Gathers presentations found under mediasite folder given folder's id
 
@@ -244,23 +244,15 @@ class folder():
         increment = 50
         folder_presentations = []
 
-        next_page = f'$skip=0&$top={increment}'
+        next_page = f'$select=full&$skip=0&$top={increment}'
         while next_page:
             result = self.mediasite.api_client.request("get", f"Folders(\'{parent_id}\')/Presentations", next_page)
             if not self.mediasite.experienced_request_errors(result):
                 result = result.json()
                 data = result['value']
-                if all_data:
-                    folder_presentations = data
-
-                else:
-                    folder_presentations.extend([{'id': presentation['Id'],
-                                                  'title': presentation['Title'],
-                                                  'owner': presentation['RootOwner']}
-                                                for presentation in data])
+                folder_presentations.extend(data)
                 next_link = result.get('odata.nextLink')
                 next_page = next_link.split('?')[-1] if next_link else None
-
         return folder_presentations
 
     def get_folder_catalogs(self, parent_id):
@@ -274,19 +266,26 @@ class folder():
             details of presentations found within mediasite folder
         """
 
-        logging.info("Finding Mediasite catalogs under parent: "+parent_id)
+        logging.info(f'Finding Mediasite catalogs under folder parent: {parent_id}')
 
-        result = self.mediasite.api_client.request("get", "Catalogs", "$top=600&$filter=LinkedFolderId eq '"+parent_id+"'","")
-        result_json = result.json()
-        result_list = []
-        for catalog in result_json["value"]:
-            if catalog["LinkedFolderId"] == parent_id:
-                result_list.append(catalog)
+        data = list()
+        next_page = f"$top=600&$filter=LinkedFolderId eq '{parent_id}'"
+        result = self.mediasite.api_client.request("get", "Catalogs", next_page)
 
-        if self.mediasite.experienced_request_errors(result):
-            return result
-        else:
-            return result_list
+        next_page = str()
+        if not self.mediasite.experienced_request_errors(result):
+            result = result.json()
+            data.extend(result.get('value'))
+            next_page = result.get('odata.nextLink')
+
+        while next_page:
+            result = self.mediasite.api_client.request("get", "Catalogs", next_page)
+            if not self.mediasite.experienced_request_errors(result):
+                result = result.json()
+                data.extend(result.get('value'))
+            next_page = result.get('odata.nextLink')
+
+        return data
 
     def get_child_folders(self, parent_id, child_result=[]):
         """
@@ -365,21 +364,15 @@ class folder():
         logging.info("Gathering all Mediasite folders")
 
         if not self.folders:
-            increment = 500
+            increment = 1000
             folders = []
-            next_page = f'$skip=0&$top={increment}&$filter=Recycled eq false'
+            next_page = f'$skip=0&$top={increment}&$select=full'
             while next_page:
                 result = self.mediasite.api_client.request('get', 'Folders', next_page)
                 if not self.mediasite.experienced_request_errors(result):
                     result = result.json()
-                    for folder in result['value']:
-                        folder_info = {
-                            'id': folder['Id'],
-                            'parent_id': folder['ParentFolderId'],
-                            'name': folder['Name'],
-                            'owner': folder['Owner']
-                        }
-                        folders.append(folder_info)
+                    folder = result['value']
+                    folders.extend(folder)
                     next_link = result.get('odata.nextLink')
                     next_page = next_link.split('?')[-1] if next_link else None
 

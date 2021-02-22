@@ -24,6 +24,7 @@ import assets.mediasite.modules.template as template
 import assets.mediasite.modules.report as report
 import assets.mediasite.modules.presentation as presentation
 import assets.mediasite.modules.content as content
+import assets.mediasite.modules.user as user
 
 class controller():
     def __init__(self, config_data, *args, **kwargs):
@@ -44,6 +45,7 @@ class controller():
         self.report = report.report(self)
         self.presentation = presentation.presentation(self)
         self.content = content.content(self)
+        self.user = user.user(self)
 
     def create_api_client(self, config_data):
         """
@@ -57,10 +59,9 @@ class controller():
         """
 
         return api_client.client(config_data["mediasite_base_url"],
-                                    config_data["mediasite_api_secret"],
-                                    config_data["mediasite_api_user"],
-                                    config_data["mediasite_api_pass"]
-                                )
+                                 config_data["mediasite_api_secret"],
+                                 config_data["mediasite_api_user"],
+                                 config_data["mediasite_api_pass"])
 
     def connection_validated(self):
         """
@@ -91,19 +92,23 @@ class controller():
         returns:
             true if errors were experienced, false if no errors experienced
         """
-        if request_result.status_code < 300 or request_result.status_code == allowed_status:
+        if request_result.status_code == 200 or request_result.status_code == allowed_status:
             return False
-        else:
+        elif request_result.status_code < 400:
+            logging.warning(f'Specific status code: {request_result.status_code}')
+            return False
+        elif request_result.status_code >= 400 or type(request_result) is str:
+            logging.error(f'Request error: {request_result.status_code}')
+            self.model.set_current_connection_valid(False)
             try:
-                result = request_result.json()
-                if result['odata.error']['code'] == "NavigationPropertyNull":
-                    return False
-                logging.error(result['odata.error']['code'] + ': ' + result['odata.error']['message']['value'] + '. Status code: ' + str(request_result.status_code))
-            except ValueError:
-                logging.error(f'No JSON response: {request_result.status_code} ')
-
-                self.model.set_current_connection_valid(False)
+                result = json.loads(request_result)
+                logging.error(result["odata.error"]["code"] + ": " + result["odata.error"]["message"]["value"])
+            except Exception as e:
+                logging.error('No error message for the request')
+                logging.debug(e)
             return True
+        else:
+            return False
 
     def wait_for_job_to_complete(self, job_link_url):
         """

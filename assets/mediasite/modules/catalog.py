@@ -42,13 +42,10 @@ class catalog():
 
     def get_all_catalogs(self):
         """
-        Gathers presentations found under mediasite folder given folder's id
-
-        params:
-            parent_id: id of mediasite folder
+        Gathers all mediasite catalogs
 
         returns:
-            details of presentations found within mediasite folder
+            list of mediasite catalogs
         """
 
         logging.info("Gathering all catalogs.")

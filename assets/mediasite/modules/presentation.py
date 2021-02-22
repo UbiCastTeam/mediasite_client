@@ -33,24 +33,26 @@ class presentation():
         presentations_list = []
 
         next_page = f'$skip={str(current)}&$top={str(increment)}'
-        while next_page:
-            result = self.mediasite.api_client.request("get", "Presentations", next_page)
-            if self.mediasite.experienced_request_errors(result):
-                return result
-            elif "odata.error" in result:
-                logging.error(result["odata.error"]["code"] + ": " + result["odata.error"]["message"]["value"])
-                return result.json()
+        result = self.mediasite.api_client.request("get", "Presentations", next_page)
 
-            result = result.json()
-            data = result['value']
-            if not all_data:
-                small_data = list()
-                for presentation in data:
-                    small_data.append({'id': presentation['Id'], 'title': presentation['Title']})
-                data = small_data
-            presentations_list.extend(data)
-            next_link = result.get('odata.nextLink')
-            next_page = next_link.split('?')[-1] if next_link else None
+        while next_page:
+            if not self.mediasite.experienced_request_errors(result):
+                result = result.json()
+                if "odata.error" in result:
+                    logging.error(result["odata.error"]["code"] + ": " + result["odata.error"]["message"]["value"])
+                    return result.json()
+
+                data = result['value']
+                if not all_data:
+                    filtered_data = list()
+                    for presentation in data:
+                        filtered_data.append({'id': presentation['Id'], 'title': presentation['Title']})
+                    data = filtered_data
+                presentations_list.extend(data)
+                next_page = result.get('odata.nextLink')
+                # next_page = next_link.split('?')[-1] if next_link else None
+
+                result = self.mediasite.api_client.request("get", next_page)
 
         return presentations_list
 
@@ -63,35 +65,33 @@ class presentation():
                 logging.error(result["odata.error"]["code"] + ": " + result["odata.error"]["message"]["value"])
         return int(result['odata.count'])
 
-    def get_presentation_by_id(self, presentation_id, content=None):
+    def get_presentation_by_id(self, presentation_id):
         """
         Gets mediasite presentation given presentation guid
 
         params:
             presentation_id: guid of a mediasite presentation
-            content: specific content resource of the presentation
 
         returns:
             resulting response from the mediasite web api request
         """
 
-        debug_message = 'Getting the presentation.'
-        if content:
-            debug_message += f'Content: {content}.'
-        debug_message += f'ID: {presentation_id}'
-        logging.debug(debug_message)
+        logging.debug(f'Getting the presentation: {presentation_id} ')
 
+        data = dict()
         route = f'Presentations(\'{presentation_id}\')/'
         result = self.mediasite.api_client.request('get', route)
 
-        if not self.mediasite.experienced_request_errors(result):
-            data = result.json()
-            if "odata.error" in data:
-                logging.error(data["odata.error"]["code"] + ": " + data["odata.error"]["message"]["value"])
+        if self.mediasite.experienced_request_errors(result):
+            logging.error('Presentation ID: ' + presentation_id)
+        else:
+            result = result.json()
+            if "odata.error" in result:
+                logging.error(result["odata.error"]["code"] + ": " + result["odata.error"]["message"]["value"])
             else:
-                return data
-        logging.error('Presentation ID: ' + presentation_id)
-        return None
+                data = result['value']
+
+        return data
 
     def get_presentations_by_name(self, name_search_query):
         """
@@ -118,118 +118,46 @@ class presentation():
 
             return result
 
-    def get_all_presentations_content(self, resource_content):
+    def get_availability(self, presentation_id):
         """
-        Gathers a listing of the specified content of all presentations.
+        Gets presentation's availibility given by presentation guid
 
         params:
-            content: content requested
-        returns:
-            list of resulting responses from the mediasite web api request
-        """
-
-        logging.info('Getting all presentations content : ' + resource_content)
-
-        presentations_list = self.get_all_presentations()
-        content_list = []
-        current = 0
-        for presentation in presentations_list:
-            # Printing progression
-            print('Requesting content : ', current, '/', len(presentations_list), end='\r', flush=True)
-
-            content = self.get_presentation_by_id(presentation['Id'], resource_content)
-            content_list.append(content)
-            current += 1
-        return content_list
-
-    def get_content_server(self, content_server_id, slide=False):
-        """
-        Gets mediasite content server given server guid
-
-        params:
-            content_server__id: guid of a mediasite content server
+            presentation_id: guid of a mediasite presentation
 
         returns:
             resulting response from the mediasite web api request
         """
 
-        logging.debug(f'Getting the content server : {content_server_id}')
+        logging.debug(f'Getting availability for presentation:{presentation_id}')
 
-        options = 'StorageEndpoint' if slide else ''
-        route = f'ContentServers(\'{content_server_id}\')/{options}'
-        result = self.mediasite.api_client.request('get', route)
+        result = self.mediasite.api_client.request('get', 'MediasiteObject?$filter')
+    def get_content(self, presentation_id, resource_content):
+        return self.mediasite.content.get_content(presentation_id, resource_content)
 
-        if not self.mediasite.experienced_request_errors(result):
-            data = result.json()
-            if "odata.error" in data:
-                logging.warning(result["odata.error"]["code"] + ": " + result["odata.error"]["message"]["value"])
-            else:
-                return data
-        logging.error('Content Server ID: ' + content_server_id)
-        return None
-
-    def get_presentation_content(self, presentation_id, resource_content):
+    def get_presenters(self, presentation_id):
         """
-        Gets the presentation's specified content using its ID
+        Gets listing of presentation's presenters given by presentation guid
 
-        params:
-            content: content requested; all contents (video and slides) if not specified.
-                (example: OnDemandContent, SlideDetailsContent, ...)
         returns:
-            list of resulting responses from the mediasite web api request
+            resulting response value from the mediasite web api request: list of presenters
         """
+        logging.debug(f'Getting presenters for presentation: {presentation_id}')
 
-        logging.debug(f'Getting presentation content. Content: {resource_content}. Presentation ID: {presentation_id}')
-
-        route = f'Presentations(\'{presentation_id}\')/{resource_content}'
+        data = list()
+        route = f'Presentations(\'{presentation_id}\')/Presenters'
         result = self.mediasite.api_client.request('get', route)
 
-        # allow 404 if slide request so as to catch it later
-        allowed_status = None
-        if resource_content == "SlideDetailsContent":
-            allowed_status = 404
-
-        if not self.mediasite.experienced_request_errors(result, allowed_status):
-            data = result.json()
+        if self.mediasite.experienced_request_errors(result):
+            logging.error(f'Presentation: {presentation_id}')
+        else:
+            result = result.json()
             if 'odata.error' in result:
-                # catch error 404 when there is no slide content so as to prevent flooding logs
-                if data['odata.error']['code'] == 'NavigationPropertyNull' and resource_content == 'SlideDetailsContent':
-                    logging.debug('No slide for this presentation: ' + presentation_id)
-                else:
-                    # re-check for others 404 errors
-                    self.mediasite.experienced_request_errors(result)
-            elif not self.mediasite.experienced_request_errors(result):
-                return data
-
-        logging.warning('Presentation ID: ' + presentation_id)
-        return None
-
-    def get_content_encoding_settings(self, settings_id):
-        """
-        Gets the content encoding settings of a video content, given the settings id.
-
-        params:
-            settings: the ContentEncodingSettingsId of the video content
-        returns:
-            resulting response from the mediasite api
-        """
-
-        logging.debug(f'Getting content encoding settings. Settings ID: {settings_id}')
-
-        route = f'ContentEncodingSettings(\'{settings_id}\')'
-        result = self.mediasite.api_client.request('get', route)
-        if not self.mediasite.experienced_request_errors(result, allowed_status=400):
-            data = result.json()
-            if "odata.error" in data:
-                if data['odata.error']['code'] == 'InvalidKey':
-                    logging.debug('No encoding settings ID for this media.')
-                    logging.debug(data["odata.error"]["code"] + ": " + data["odata.error"]["message"]["value"])
-                else:
-                    logging.error(data["odata.error"]["code"] + ": " + data["odata.error"]["message"]["value"])
+                logging.error(result["odata.error"]["code"] + ": " + result["odata.error"]["message"]["value"])
             else:
-                return data
-        logging.debug(f'Content encoded settings ID: {settings_id}')
-        return None
+                data = result.get('value')
+
+        return data
 
     def delete_presentation(self, presentation_id):
         """
