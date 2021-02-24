@@ -6,22 +6,25 @@ class content():
     def __init__(self, mediasite):
         self.mediasite = mediasite
 
-    def get_authorization_ticket(self, presentation_id):
+    def get_authorization_ticket(self, presentation_id, lifespan=500000):
+        logging.debug(f'Getting authorization ticket for presentation: {presentation_id}')
+        data = dict()
         post_vars = {
             'ResourceId': presentation_id,
             'Username': self.mediasite.api_client.username,
-            'MinutesToLive': '300'
+            'MinutesToLive': str(lifespan)
         }
-        result = self.mediasite.api_client.request('post', f"AuthorizationTickets('{presentation_id}')", post_vars=post_vars)
+        result = self.mediasite.api_client.request('post', "AuthorizationTickets", post_vars=post_vars)
 
-        if not self.mediasite.experienced_request_errors(result):
-            data = result.json()
-            if 'odata.error' in data:
-                logging.error(data["odata.error"]["code"] + ": " + data["odata.error"]["message"]["value"])
+        if self.mediasite.experienced_request_errors(result):
+            logging.error(f'Authorization ticket not delivered for presentation: {presentation_id}')
+        else:
+            result = result.json()
+            if 'odata.error' in result:
+                logging.error(result["odata.error"]["code"] + ": " + result["odata.error"]["message"]["value"])
             else:
-                return data
-        logging.error(f'Authorization Ticket not delivered for presentation: {presentation_id}')
-        return None
+                data = result
+        return data
 
     def get_content(self, presentation_id, resource_content):
         """
