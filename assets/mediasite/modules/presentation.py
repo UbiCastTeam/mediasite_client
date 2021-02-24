@@ -17,7 +17,7 @@ class presentation():
     def __init__(self, mediasite, *args, **kwargs):
         self.mediasite = mediasite
 
-    def get_all_presentations(self, all_data=False):
+    def get_all_presentations(self):
         """
         Gathers a listing of all presentations.
 
@@ -32,27 +32,19 @@ class presentation():
         increment = 1000
         presentations_list = []
 
-        next_page = f'$skip={str(current)}&$top={str(increment)}'
-        result = self.mediasite.api_client.request("get", "Presentations", next_page)
-
+        next_page = f'$select=full&$skip={str(current)}&$top={str(increment)}'
         while next_page:
+            result = self.mediasite.api_client.request('get', 'Presentations', next_page)
             if not self.mediasite.experienced_request_errors(result):
                 result = result.json()
                 if "odata.error" in result:
                     logging.error(result["odata.error"]["code"] + ": " + result["odata.error"]["message"]["value"])
-                    return result.json()
+                else:
+                    data = result['value']
+                    presentations_list.extend(data)
 
-                data = result['value']
-                if not all_data:
-                    filtered_data = list()
-                    for presentation in data:
-                        filtered_data.append({'id': presentation['Id'], 'title': presentation['Title']})
-                    data = filtered_data
-                presentations_list.extend(data)
-                next_page = result.get('odata.nextLink')
-                # next_page = next_link.split('?')[-1] if next_link else None
-
-                result = self.mediasite.api_client.request("get", next_page)
+                    next_link = result.get('odata.nextLink')
+                    next_page = next_link.split('?')[-1] if next_link else None
 
         return presentations_list
 
@@ -131,7 +123,21 @@ class presentation():
 
         logging.debug(f'Getting availability for presentation:{presentation_id}')
 
-        result = self.mediasite.api_client.request('get', 'MediasiteObject?$filter')
+        data = str()
+        route = f'MediasiteObjects(\'{presentation_id}\')'
+        result = self.mediasite.api_client.request('get', route)
+
+        if self.mediasite.experienced_request_errors(result):
+            logging.error(f'Presentation: {presentation_id}')
+        else:
+            result = result.json()
+            if 'odata.error' in result:
+                logging.error(result["odata.error"]["code"] + ": " + result["odata.error"]["message"]["value"])
+            else:
+                data = result.get('Availability')
+
+        return data
+
     def get_content(self, presentation_id, resource_content):
         return self.mediasite.content.get_content(presentation_id, resource_content)
 

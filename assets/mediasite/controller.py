@@ -101,7 +101,7 @@ class controller():
             logging.error(f'Request error: {request_result.status_code}')
             self.model.set_current_connection_valid(False)
             try:
-                result = json.loads(request_result)
+                result = request_result.json()
                 logging.error(result["odata.error"]["code"] + ": " + result["odata.error"]["message"]["value"])
             except Exception as e:
                 logging.error('No error message for the request')
