@@ -28,6 +28,8 @@ class client:
         self.username = username
         self.password = password
 
+        self.session = None
+
     #formatting for login credentials needed by Mediasite
     def get_basic_auth_header_value(self):
         """
@@ -51,6 +53,9 @@ class client:
             odata_attributes: odata attributes to use when making the requests
             post_vars: variables to send when making post requests
         """
+        if self.session is None:
+            self.session = requests.Session()
+
         self.resource = resource
         self.odata_attributes = f'?{odata_attributes}' if (odata_attributes) else ''
 
@@ -64,27 +69,28 @@ class client:
             "Authorization": self.get_basic_auth_header_value()
         }
 
+        req = self.session if self.session else requests
         try:
             if request_type == "get":
-                rsp = requests.get(url, headers=auth_values, verify=False)
+                rsp = req.get(url, headers=auth_values, verify=False)
 
             elif request_type == "post":
-                rsp = requests.post(url, headers=auth_values, json=post_vars, verify=False)
+                rsp = req.post(url, headers=auth_values, json=post_vars, verify=False)
 
             elif request_type == "put":
-                rsp = requests.put(url, headers=auth_values, json=post_vars, verify=False)
+                rsp = req.put(url, headers=auth_values, json=post_vars, verify=False)
 
             elif request_type == "delete":
-                rsp = requests.delete(url, headers=auth_values, verify=False)
+                rsp = req.delete(url, headers=auth_values, verify=False)
 
             elif request_type == "patch":
-                rsp = requests.patch(url, headers=auth_values, json=post_vars, verify=False)
+                rsp = req.patch(url, headers=auth_values, json=post_vars, verify=False)
 
             elif request_type == "get stream":
-                rsp = requests.get(resource, headers=auth_values, verify=False, stream=True)
+                rsp = req.get(resource, headers=auth_values, verify=False, stream=True)
 
             elif request_type == "get job":
-                rsp = requests.get(resource, headers=auth_values, verify=False)
+                rsp = req.get(resource, headers=auth_values, verify=False)
 
             return rsp
 
