@@ -17,7 +17,7 @@ class presentation():
     def __init__(self, mediasite, *args, **kwargs):
         self.mediasite = mediasite
 
-    def get_all_presentations(self):
+    def get_all_presentations(self, debug=False):
         """
         Gathers a listing of all presentations.
 
@@ -45,17 +45,22 @@ class presentation():
 
                     next_link = result.get('odata.nextLink')
                     next_page = next_link.split('?')[-1] if next_link else None
+            if debug:
+                break
 
         return presentations_list
 
     def get_number_of_presentations(self):
+        data = int()
         next_page = '$skip=0&$top=1'
         result = self.mediasite.api_client.request("get", "Presentations", next_page)
         if not self.mediasite.experienced_request_errors(result):
             result = result.json()
             if "odata.error" in result:
                 logging.error(result["odata.error"]["code"] + ": " + result["odata.error"]["message"]["value"])
-        return int(result['odata.count'])
+            else:
+                data = int(result['odata.count'])
+        return data
 
     def get_presentation_by_id(self, presentation_id):
         """
