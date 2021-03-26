@@ -43,6 +43,10 @@ class client:
             str(base64.b64encode(bytes(self.username + ":" + self.password, "utf-8")).decode("utf-8"))
         return return_string
 
+    def close_sessions(self):
+        if self.session:
+            self.session.close()
+
     def request(self, request_type, resource, odata_attributes=None, post_vars=None):
         """
         Performs API request based on parameter data

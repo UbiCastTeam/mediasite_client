@@ -353,7 +353,7 @@ class folder():
         else:
             return result
 
-    def get_all_folders(self):
+    def get_all_folders(self, max_folders=None):
         """
         Gathers all mediasite folders name, ID, and parent ID listing from mediasite system
 
@@ -375,6 +375,8 @@ class folder():
                     folders.extend(folder)
                     next_link = result.get('odata.nextLink')
                     next_page = next_link.split('?')[-1] if next_link else None
+                if max_folders and len(folders) > max_folders:
+                    break
 
             self.mediasite.model.set_folders(folders)
             self.folders = folders
