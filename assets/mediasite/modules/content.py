@@ -42,7 +42,6 @@ class content():
         data = dict()
         route = f'Presentations(\'{presentation_id}\')/{resource_content}'
         result = self.mediasite.api_client.request('get', route)
-
         if not self.mediasite.experienced_request_errors(result):
             result = result.json()
             data = result if resource_content == 'SlideDetailsContent' else result.get('value')

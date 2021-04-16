@@ -8,9 +8,6 @@ License: MIT - see license.txt
 """
 
 import logging
-from urllib.parse import quote
-import json
-import os
 
 
 class presentation():
@@ -24,7 +21,7 @@ class presentation():
         returns:
             resulting response from the mediasite web api request
         """
-        logging.info("Getting a list of all presentations")
+        logging.info("Getting a list of all presentations. Take a few minutes...")
 
         #request mediasite folder information on the "Mediasite Users" folder
         current = 0
@@ -45,6 +42,7 @@ class presentation():
 
                     next_link = result.get('odata.nextLink')
                     next_page = next_link.split('?')[-1] if next_link else None
+
         return presentations_list
 
     def get_number_of_presentations(self):
@@ -195,7 +193,7 @@ class presentation():
     def remove_publish_to_go(self, presentation_id):
         """
         Gathers mediasite root folder ID for use with other functions.
-        
+
         params:
             template_name: name of the template to be found within mediasite
 
@@ -207,7 +205,7 @@ class presentation():
 
         #request mediasite folder information on the "Mediasite Users" folder
         result = self.mediasite.api_client.request("post", "Presentations('"+presentation_id+"')/RemovePublishToGo", "","")
-        
+
         if self.mediasite.experienced_request_errors(result):
             return result
         else:
@@ -220,7 +218,7 @@ class presentation():
     def remove_podcast(self, presentation_id):
         """
         Gathers mediasite root folder ID for use with other functions.
-        
+
         params:
             template_name: name of the template to be found within mediasite
 
@@ -232,7 +230,7 @@ class presentation():
 
         #request mediasite folder information on the "Mediasite Users" folder
         result = self.mediasite.api_client.request("post", "Presentations('"+presentation_id+"')/RemovePodcast", "","")
-        
+
         if self.mediasite.experienced_request_errors(result):
             return result
         else:
@@ -245,7 +243,7 @@ class presentation():
     def remove_video_podcast(self, presentation_id):
         """
         Gathers mediasite root folder ID for use with other functions.
-        
+
         params:
             template_name: name of the template to be found within mediasite
 
@@ -257,7 +255,7 @@ class presentation():
 
         #request mediasite folder information on the "Mediasite Users" folder
         result = self.mediasite.api_client.request("post", "Presentations('"+presentation_id+"')/RemoveVideoPodcast", "","")
-        
+
         if self.mediasite.experienced_request_errors(result):
             return result
         else:
