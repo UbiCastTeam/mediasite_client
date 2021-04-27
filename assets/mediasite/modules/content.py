@@ -61,18 +61,21 @@ class content():
 
         logging.debug(f'Getting the content server : {content_server_id}')
 
+        data = dict()
         options = 'StorageEndpoint' if slide else ''
         route = f'ContentServers(\'{content_server_id}\')/{options}'
         result = self.mediasite.api_client.request('get', route)
 
-        if not self.mediasite.experienced_request_errors(result):
-            data = result.json()
+        if self.mediasite.experienced_request_errors(result):
+            logging.error('Not getting Content Server with ID: ' + content_server_id)
+        else:
+            result = result.json()
             if "odata.error" in data:
-                logging.warning(result["odata.error"]["code"] + ": " + result["odata.error"]["message"]["value"])
+                logging.error(result["odata.error"]["code"] + ": " + result["odata.error"]["message"]["value"])
             else:
-                return data
-        logging.error('Not getting Content Server with ID: ' + content_server_id)
-        return None
+                data = result
+
+        return data
 
     def get_content_encoding_settings(self, settings_id):
         """
@@ -86,17 +89,20 @@ class content():
 
         logging.debug(f'Getting content encoding settings. Settings ID: {settings_id}')
 
+        data = dict()
         route = f'ContentEncodingSettings(\'{settings_id}\')'
         result = self.mediasite.api_client.request('get', route)
-        if not self.mediasite.experienced_request_errors(result, allowed_status=400):
-            data = result.json()
-            if "odata.error" in data:
-                if data['odata.error']['code'] == 'InvalidKey':
-                    logging.debug('No encoding settings ID for this media.')
-                    logging.debug(data["odata.error"]["code"] + ": " + data["odata.error"]["message"]["value"])
+
+        if self.mediasite.experienced_request_errors(result, allowed_status=400):
+            logging.debug('Failed to get encoding settings ID for this media.')
+        else:
+            result = result.json()
+            if "odata.error" in result:
+                if result['odata.error']['code'] == 'InvalidKey':
+                    logging.warning(result["odata.error"]["code"] + ": " + result["odata.error"]["message"]["value"])
                 else:
-                    logging.error(data["odata.error"]["code"] + ": " + data["odata.error"]["message"]["value"])
+                    logging.error(result["odata.error"]["code"] + ": " + result["odata.error"]["message"]["value"])
             else:
-                return data
-        logging.debug(f'Content encoded settings ID: {settings_id}')
-        return None
+                data = result
+
+        return data
