@@ -57,7 +57,7 @@ class presentation():
                 data = int(result['odata.count'])
         return data
 
-    def get_presentation_by_id(self, presentation_id):
+    def get_presentation_by_id(self, presentation_id, full=False):
         """
         Gets mediasite presentation given presentation guid
 
@@ -71,7 +71,8 @@ class presentation():
         logging.debug(f'Getting the presentation: {presentation_id} ')
 
         data = dict()
-        route = f'Presentations(\'{presentation_id}\')/'
+        select = '?$select=full' if full else ''
+        route = f'Presentations(\'{presentation_id}\')/{select}'
         result = self.mediasite.api_client.request('get', route)
 
         if self.mediasite.experienced_request_errors(result):
@@ -162,6 +163,30 @@ class presentation():
                 logging.error(result["odata.error"]["code"] + ": " + result["odata.error"]["message"]["value"])
             else:
                 data = result.get('value')
+
+        return data
+
+    def get_analytics(self, presentation_id):
+        """
+        Gets listing of presentation's analytics (views, connections, watch dates, etc) given by presentation guid
+
+        returns:
+            resulting response value from the mediasite web api request: list of stats
+        """
+        logging.debug(f'Getting analytics for presentation {presentation_id}')
+
+        data = list()
+        route = f'PresentationAnalytics(\'{presentation_id}\')'
+        result = self.mediasite.api_client.request('get', route)
+
+        if self.mediasite.experienced_request_errors(result):
+            logging.error(f'Presentation: {presentation_id}')
+        else:
+            result = result.json()
+            if 'odata.error' in result:
+                logging.error(result["odata.error"]["code"] + ": " + result["odata.error"]["message"]["value"])
+            else:
+                data = result
 
         return data
 
