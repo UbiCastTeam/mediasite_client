@@ -98,7 +98,7 @@ class controller():
             logging.warning(f'Specific status code: {request_result.status_code}')
             return False
         elif request_result.status_code >= 400 or type(request_result) is str:
-            logging.error(f'Request error: {request_result.status_code}')
+            logging.error(f'Request error [{request_result.status_code}]: {request_result.url}')
             self.model.set_current_connection_valid(False)
             try:
                 result = request_result.json()
@@ -121,7 +121,7 @@ class controller():
         while 1:
             #gather information on the job status
             job_result = self.api_client.request("get job", job_link_url, "", "").json()
-            
+
             if self.experienced_request_errors(job_result):
                 return job_result
             else:
@@ -167,7 +167,7 @@ class controller():
 
         #parse and create folders
         parent_folder_id = self.folder.parse_and_create_folders(schedule_data["mediasite_folders"], schedule_data["mediasite_folder_root_id"])
-        
+
         #set the current schedule data parent folder id
         schedule_data["schedule_parent_folder_id"] = parent_folder_id
 
