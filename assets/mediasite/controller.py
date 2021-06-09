@@ -61,7 +61,7 @@ class controller():
         return api_client.client(config_data["mediasite_base_url"],
                                  config_data["mediasite_api_secret"],
                                  config_data["mediasite_api_user"],
-                                 config_data["mediasite_api_pass"])
+                                 config_data["mediasite_api_password"])
 
     def connection_validated(self):
         """

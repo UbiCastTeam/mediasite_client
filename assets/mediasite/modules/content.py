@@ -74,7 +74,6 @@ class content():
                 logging.error(result["odata.error"]["code"] + ": " + result["odata.error"]["message"]["value"])
             else:
                 data = result
-
         return data
 
     def get_content_encoding_settings(self, settings_id):
@@ -104,5 +103,4 @@ class content():
                     logging.error(result["odata.error"]["code"] + ": " + result["odata.error"]["message"]["value"])
             else:
                 data = result
-
         return data
