@@ -206,7 +206,7 @@ class folder():
     def get_folder_schedules(self, parent_id):
         """
         Gathers schedules found under mediasite folder given folder's id
-        
+
         params:
             parent_id: id of mediasite folder
 
@@ -219,7 +219,7 @@ class folder():
         logging.info("Finding Mediasite presentations under parent: "+parent_id)
 
         result = self.mediasite.api_client.request("get", "Schedules", "$top=100&$filter=FolderId eq '"+parent_id+"'","")
-        
+
         if self.mediasite.experienced_request_errors(result):
             return result
         else:
@@ -290,7 +290,7 @@ class folder():
     def get_child_folders(self, parent_id, child_result=[]):
         """
         Gathers mediasite child folders given parent id of a folder
-        
+
         params:
             parent_id: id of mediasite folder
 
@@ -299,7 +299,7 @@ class folder():
         """
 
         logging.debug("Finding child Mediasite folders under parent: "+parent_id)
-  
+
         result = self.mediasite.api_client.request("get", "Folders", "$top=100&$filter=ParentFolderId eq '"+parent_id+"' and Recycled eq false","")
 
         if self.mediasite.experienced_request_errors(result) or int(result.json()["odata.count"]) <= 0:
@@ -314,7 +314,7 @@ class folder():
     def get_folder_by_name(self, folder_name):
         """
         Gathers folder information given folder name within mediasite
-        
+
         params:
             folder_name: name of folder which is to be found by name
 
@@ -325,7 +325,7 @@ class folder():
         logging.info("Finding Mediasite folder information with name of: "+folder_name)
 
         result = self.mediasite.api_client.request("get", "Folders", "$filter=Name eq '"+folder_name+"' and Recycled eq false","").json()
-        
+
         if self.mediasite.experienced_request_errors(result):
             return result
 
@@ -335,7 +335,7 @@ class folder():
     def get_folder_by_id(self, folder_id):
         """
         Gathers folder information given folder name within mediasite
-        
+
         params:
             folder_name: name of folder which is to be found by name
 
@@ -346,7 +346,7 @@ class folder():
         logging.info("Finding Mediasite folder information with id of: "+folder_id)
 
         result = self.mediasite.api_client.request("get", "Folders('"+folder_id+"')", "", "","").json()
-        
+
         if self.mediasite.experienced_request_errors(result):
             return result
 
@@ -375,7 +375,7 @@ class folder():
                     folders.extend(folder)
                     next_link = result.get('odata.nextLink')
                     next_page = next_link.split('?')[-1] if next_link else None
-                if max_folders and len(folders) > max_folders:
+                if max_folders and len(folders) > int(max_folders):
                     break
 
             self.mediasite.model.set_folders(folders)
@@ -414,7 +414,7 @@ class folder():
     def delete_folder(self, folder_id):
         """
         Deletes folder based on folder guid id provided as argument
-        
+
         params:
             folder_id: guid of folder to delete
 
@@ -425,7 +425,7 @@ class folder():
         logging.info("Deleting mediasite folder with guid of: "+folder_id)
 
         result = self.mediasite.api_client.request("post", "Folders('"+folder_id+"')/DeleteFolder", "",{})
-        
+
         if self.mediasite.experienced_request_errors(result):
             return result
 
@@ -435,7 +435,7 @@ class folder():
     def delete_folder_by_path(self, folder_path):
         """
         Deletes parent folder including potentially many child folder or sub-elements
-        
+
         params:
             folder_path: mediasite management portal folder path, for ex "/Current/Spring 2018/Test"
 
@@ -457,7 +457,7 @@ class folder():
                 #if we don't find one of the folders in the provided path, return to stop this function from continuing
                 logging.error("Unable to find folder in provided path: "+folder_name)
                 return
-        
+
         #remove "recorded" presentations and schedules as these can prevent folders from being deleted
         child_folders = self.mediasite.folder.get_child_folders(parent_id)
         child_folders.append({"Id":parent_id})
@@ -477,7 +477,7 @@ class folder():
                     #if presentation["Status"] == "Recorded" or presentation["Status"] == "Record":
                     logging.info("Deleting presentation "+presentation["Title"]+" to ensure capability to delete parent folder(s).")
                     delete_result = self.mediasite.presentation.delete_presentation(presentation["Id"])
-            
+
             #schedule loop to remove schedules
             folder_schedules = self.mediasite.folder.get_folder_schedules(folder["Id"])
             folder_schedules_json = folder_schedules.json()
@@ -493,7 +493,7 @@ class folder():
 
             result = self.mediasite.folder.delete_folder(folder["Id"])
             job_result = self.mediasite.wait_for_job_to_complete(result.json()["odata.id"])
-        
+
 
         result = self.mediasite.folder.delete_folder(parent_id)
 

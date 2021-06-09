@@ -31,7 +31,7 @@ class content():
         Gets the presentation's specified content using its ID
 
         params:
-            content: content requested; all contents (video and slides) if not specified.
+            content: content requested
                 (example: OnDemandContent, SlideDetailsContent, ...)
         returns:
             list of resulting responses from the mediasite web api request
