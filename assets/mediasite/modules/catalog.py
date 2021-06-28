@@ -9,67 +9,54 @@ License: MIT - see license.txt
 
 import logging
 
+
 class catalog():
     def __init__(self, mediasite, *args, **kwargs):
         self.mediasite = mediasite
-
-    def delete_catalog(self, catalog_id):
-        """
-        Deletes mediasite schedule given schedule guid
-        
-        params:
-            presentation_id: guid of a mediasite schedule
-
-        returns:
-            resulting response from the mediasite web api request
-        """
-
-        logging.info("Deleting Mediasite catalog: "+catalog_id)
-
-        #request mediasite folder information on the "Mediasite Users" folder
-        result = self.mediasite.api_client.request("delete", "Catalogs('"+catalog_id+"')", "","")
-        
-        if self.mediasite.experienced_request_errors(result):
-            return result
-        else:
-            #if there is an error, log it
-            if "odata.error" in result:
-                logging.error(result["odata.error"]["code"]+": "+result["odata.error"]["message"]["value"])
-
-            return result
+        self.catalogs = list()
 
     def get_all_catalogs(self):
         """
-        Gathers presentations found under mediasite folder given folder's id
-        
-        params:
-            parent_id: id of mediasite folder
+        Gathers all mediasite catalogs
 
         returns:
-            details of presentations found within mediasite folder
+            list of mediasite catalogs
         """
 
         logging.info("Gathering all catalogs.")
 
-        catalogs = []
-        size = 100
-        total = 1
-        skip = 0
+        if not self.catalogs:
+            catalogs = list()
+            current = 0
+            increment = 100
 
-        while total > skip:
+            next_page = f'?$select=full&$skip={current}&$top={increment}'
+            while next_page:
+                result = self.mediasite.api_client.request("get", "Catalogs", next_page)
+                if not self.mediasite.experienced_request_errors(result):
+                    result = result.json()
+                    if 'odata.error' in result:
+                        logging.error(result["odata.error"]["code"] + ": " + result["odata.error"]["message"]["value"])
+                    else:
+                        data = result.get('value')
+                        catalogs.extend(data)
+                        next_link = result.get('odata.nextLink')
+                        next_page = next_link.split('?')[-1] if next_link else None
 
-            result = self.mediasite.api_client.request("get", "Catalogs", "$top="+str(size)+"&$skip="+str(skip),"")
-            result_json = result.json()
-            catalogs.extend(result_json["value"])
-            total = int(result_json["odata.count"])
-            skip += size
+            self.mediasite.model.set_catalogs(catalogs)
+            self.catalogs = catalogs
 
-        self.mediasite.model.set_catalogs(result_json["value"])
+        return self.catalogs
 
-        if self.mediasite.experienced_request_errors(result):
-            return result
-        else:
-            return catalogs
+    def get_catalogs_presentations(self, catalog_id):
+        route = f'Catalogs/(\'{catalog_id}\')/Presentations'
+        result = self.mediasite.api_client.request('get', route)
+
+        if not self.mediasite.experienced_request_errors(result):
+            result = result.json()
+            if "odata.error" in result:
+                logging.error(result["odata.error"]["code"] + ": " + result["odata.error"]["message"]["value"] + ' Catalog ID :  ' + catalog_id)
+        return result
 
     def enable_catalog_downloads(self, catalog_id):
         """
@@ -91,7 +78,7 @@ class catalog():
 
         #make the mediasite request using the catalog id and the patch data found above to enable downloads
         result = self.mediasite.api_client.request("patch", "Catalogs('"+catalog_id+"')/Settings", "", patch_data)
-        
+
         if self.mediasite.experienced_request_errors(result):
             return result
         else:
@@ -117,7 +104,7 @@ class catalog():
 
         #make the mediasite request using the catalog id and the patch data found above to enable downloads
         result = self.mediasite.api_client.request("patch", "Catalogs('"+catalog_id+"')/Settings", "", patch_data)
-        
+
         if self.mediasite.experienced_request_errors(result):
             return result
         else:
@@ -181,4 +168,27 @@ class catalog():
 
             return result
 
-    
+    def delete_catalog(self, catalog_id):
+        """
+        Deletes mediasite schedule given schedule guid
+
+        params:
+            presentation_id: guid of a mediasite schedule
+
+        returns:
+            resulting response from the mediasite web api request
+        """
+
+        logging.info("Deleting Mediasite catalog: "+catalog_id)
+
+        #request mediasite folder information on the "Mediasite Users" folder
+        result = self.mediasite.api_client.request("delete", "Catalogs('"+catalog_id+"')", "","")
+
+        if self.mediasite.experienced_request_errors(result):
+            return result
+        else:
+            #if there is an error, log it
+            if "odata.error" in result:
+                logging.error(result["odata.error"]["code"]+": "+result["odata.error"]["message"]["value"])
+
+            return result

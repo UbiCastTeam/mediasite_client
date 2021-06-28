@@ -23,6 +23,8 @@ import assets.mediasite.modules.folder as folder
 import assets.mediasite.modules.template as template
 import assets.mediasite.modules.report as report
 import assets.mediasite.modules.presentation as presentation
+import assets.mediasite.modules.content as content
+import assets.mediasite.modules.user as user
 
 class controller():
     def __init__(self, config_data, *args, **kwargs):
@@ -42,6 +44,8 @@ class controller():
         self.template = template.template(self)
         self.report = report.report(self)
         self.presentation = presentation.presentation(self)
+        self.content = content.content(self)
+        self.user = user.user(self)
 
     def create_api_client(self, config_data):
         """
@@ -55,10 +59,9 @@ class controller():
         """
 
         return api_client.client(config_data["mediasite_base_url"],
-                                        config_data["mediasite_api_secret"],
-                                        config_data["mediasite_api_user"],
-                                        config_data["mediasite_api_pass"]
-                                        )
+                                 config_data["mediasite_api_secret"],
+                                 config_data["mediasite_api_user"],
+                                 config_data["mediasite_api_password"])
 
     def connection_validated(self):
         """
@@ -79,7 +82,7 @@ class controller():
             self.model.set_current_connection_valid(True)
             return True
 
-    def experienced_request_errors(self, request_result):
+    def experienced_request_errors(self, request_result, allowed_status=-1):
         """
         Checks for errors experienced from web_api Python requests.
 
@@ -89,10 +92,20 @@ class controller():
         returns:
             true if errors were experienced, false if no errors experienced
         """
-
-        if type(request_result) is str:
-            logging.error(request_result)
+        if request_result.status_code == 200 or request_result.status_code == allowed_status:
+            return False
+        elif request_result.status_code < 400:
+            logging.warning(f'Specific status code: {request_result.status_code}')
+            return False
+        elif request_result.status_code >= 400 or type(request_result) is str:
+            logging.error(f'Request error [{request_result.status_code}]: {request_result.url}')
             self.model.set_current_connection_valid(False)
+            try:
+                result = request_result.json()
+                logging.error(result["odata.error"]["code"] + ": " + result["odata.error"]["message"]["value"])
+            except Exception as e:
+                logging.error('No error message for the request')
+                logging.debug(e)
             return True
         else:
             return False
@@ -108,7 +121,7 @@ class controller():
         while 1:
             #gather information on the job status
             job_result = self.api_client.request("get job", job_link_url, "", "").json()
-            
+
             if self.experienced_request_errors(job_result):
                 return job_result
             else:
@@ -154,7 +167,7 @@ class controller():
 
         #parse and create folders
         parent_folder_id = self.folder.parse_and_create_folders(schedule_data["mediasite_folders"], schedule_data["mediasite_folder_root_id"])
-        
+
         #set the current schedule data parent folder id
         schedule_data["schedule_parent_folder_id"] = parent_folder_id
 

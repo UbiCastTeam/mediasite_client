@@ -1,14 +1,14 @@
 """
-Mediasite client class for presentation-sepcific actions
+Mediasite client class for presentation-specific actions
 
-Last modified: May 2018
-By: Dave Bunten
+Last modified: December 2020
+By: Nicolas Antunes
 
 License: MIT - see license.txt
 """
 
 import logging
-from urllib.parse import quote
+
 
 class presentation():
     def __init__(self, mediasite, *args, **kwargs):
@@ -21,31 +21,75 @@ class presentation():
         returns:
             resulting response from the mediasite web api request
         """
-        logging.info("Getting a list of all presentations")
+        logging.info("Getting a list of all presentations. Take a few minutes...")
 
         #request mediasite folder information on the "Mediasite Users" folder
-
-        count = 0
         current = 0
+        # 1000 increment is usually the pre-configured maximum on Mediasite API
         increment = 1000
-        maximum = 1000
-        result_list = []
+        presentations_list = []
 
-        while current < maximum:
-            result = self.mediasite.api_client.request("get", "Presentations", "$filter=Status eq 'Unavailable'&$skip="+str(increment*count)+"&$top="+str(increment)+"","")
-            result_json = result.json()
-            #print(result_json)
-            maximum = int(result_json["odata.count"])
-            current = increment*count
-            result_list += result_json["value"]
-            count += 1
+        next_page = f'$select=full&$skip={str(current)}&$top={str(increment)}'
+        while next_page:
+            result = self.mediasite.api_client.request('get', 'Presentations', next_page)
+            if not self.mediasite.experienced_request_errors(result):
+                result = result.json()
+                if "odata.error" in result:
+                    logging.error(result["odata.error"]["code"] + ": " + result["odata.error"]["message"]["value"])
+                else:
+                    data = result['value']
+                    presentations_list.extend(data)
 
-        return result_list
+                    next_link = result.get('odata.nextLink')
+                    next_page = next_link.split('?')[-1] if next_link else None
+
+        return presentations_list
+
+    def get_number_of_presentations(self):
+        data = int()
+        next_page = '$skip=0&$top=1'
+        result = self.mediasite.api_client.request("get", "Presentations", next_page)
+        if not self.mediasite.experienced_request_errors(result):
+            result = result.json()
+            if "odata.error" in result:
+                logging.error(result["odata.error"]["code"] + ": " + result["odata.error"]["message"]["value"])
+            else:
+                data = int(result['odata.count'])
+        return data
+
+    def get_presentation_by_id(self, presentation_id, full=False):
+        """
+        Gets mediasite presentation given presentation guid
+
+        params:
+            presentation_id: guid of a mediasite presentation
+
+        returns:
+            resulting response from the mediasite web api request
+        """
+
+        logging.debug(f'Getting the presentation: {presentation_id} ')
+
+        data = dict()
+        select = '?$select=full' if full else ''
+        route = f'Presentations(\'{presentation_id}\')/{select}'
+        result = self.mediasite.api_client.request('get', route)
+
+        if self.mediasite.experienced_request_errors(result):
+            logging.error('Presentation ID: ' + presentation_id)
+        else:
+            result = result.json()
+            if "odata.error" in result:
+                logging.error(result["odata.error"]["code"] + ": " + result["odata.error"]["message"]["value"])
+            else:
+                data = result['value']
+
+        return data
 
     def get_presentations_by_name(self, name_search_query):
         """
         Gets presentations by name using provided name_search_querys
-        
+
         params:
             template_name: name of the template to be found within mediasite
 
@@ -57,20 +101,20 @@ class presentation():
 
         #request mediasite folder information on the "Mediasite Users" folder
         result = self.mediasite.api_client.request("get", "Search", "search='"+name_search_query+"'&searchtype=Presentation","")
-        
+
         if self.mediasite.experienced_request_errors(result):
             return result
         else:
             #if there is an error, log it
             if "odata.error" in result:
-                logging.error(result["odata.error"]["code"]+": "+result["odata.error"]["message"]["value"])
+                logging.error(result["odata.error"]["code"] + ": " + result["odata.error"]["message"]["value"])
 
             return result
 
-    def delete_presentation(self, presentation_id):
+    def get_availability(self, presentation_id):
         """
-        Deletes mediasite presentation given presentation guid
-        
+        Gets presentation's availibility given by presentation guid
+
         params:
             presentation_id: guid of a mediasite presentation
 
@@ -78,24 +122,103 @@ class presentation():
             resulting response from the mediasite web api request
         """
 
-        logging.info("Deleting Mediasite presentation: "+presentation_id)
+        logging.debug(f'Getting availability for presentation:{presentation_id}')
+
+        data = str()
+        route = f'MediasiteObjects(\'{presentation_id}\')'
+        result = self.mediasite.api_client.request('get', route)
+
+        if self.mediasite.experienced_request_errors(result):
+            logging.error(f'Presentation: {presentation_id}')
+        else:
+            result = result.json()
+            if 'odata.error' in result:
+                logging.error(result["odata.error"]["code"] + ": " + result["odata.error"]["message"]["value"])
+            else:
+                data = result.get('Availability')
+
+        return data
+
+    def get_content(self, presentation_id, resource_content):
+        return self.mediasite.content.get_content(presentation_id, resource_content)
+
+    def get_presenters(self, presentation_id):
+        """
+        Gets listing of presentation's presenters given by presentation guid
+
+        returns:
+            resulting response value from the mediasite web api request: list of presenters
+        """
+        logging.debug(f'Getting presenters for presentation: {presentation_id}')
+
+        data = list()
+        route = f'Presentations(\'{presentation_id}\')/Presenters'
+        result = self.mediasite.api_client.request('get', route)
+
+        if self.mediasite.experienced_request_errors(result):
+            logging.error(f'Presentation: {presentation_id}')
+        else:
+            result = result.json()
+            if 'odata.error' in result:
+                logging.error(result["odata.error"]["code"] + ": " + result["odata.error"]["message"]["value"])
+            else:
+                data = result.get('value')
+
+        return data
+
+    def get_analytics(self, presentation_id):
+        """
+        Gets listing of presentation's analytics (views, connections, watch dates, etc) given by presentation guid
+
+        returns:
+            resulting response value from the mediasite web api request: list of stats
+        """
+        logging.debug(f'Getting analytics for presentation {presentation_id}')
+
+        data = list()
+        route = f'PresentationAnalytics(\'{presentation_id}\')'
+        result = self.mediasite.api_client.request('get', route)
+
+        if self.mediasite.experienced_request_errors(result):
+            logging.error(f'Presentation: {presentation_id}')
+        else:
+            result = result.json()
+            if 'odata.error' in result:
+                logging.error(result["odata.error"]["code"] + ": " + result["odata.error"]["message"]["value"])
+            else:
+                data = result
+
+        return data
+
+    def delete_presentation(self, presentation_id):
+        """
+        Deletes mediasite presentation given presentation guid
+
+        params:
+            presentation_id: guid of a mediasite presentation
+
+        returns:
+            resulting response from the mediasite web api request
+        """
+
+        logging.info("Deleting Mediasite presentation: " + presentation_id)
 
         #request mediasite folder information on the "Mediasite Users" folder
-        result = self.mediasite.api_client.request("delete", "Presentations('"+presentation_id+"')", "","")
-        
+        result = self.mediasite.api_client.request("delete", "Presentations('presentation_id')")
+
         if self.mediasite.experienced_request_errors(result):
             return result
         else:
             #if there is an error, log it
             if "odata.error" in result:
-                logging.error(result["odata.error"]["code"]+": "+result["odata.error"]["message"]["value"])
+                logging.error(result["odata.error"]["code"] + ": " + result["odata.error"]["message"]["value"])
 
             return result
 
     def remove_publish_to_go(self, presentation_id):
         """
         Gathers mediasite root folder ID for use with other functions.
-        
+
         params:
             template_name: name of the template to be found within mediasite
 
@@ -107,7 +230,7 @@ class presentation():
 
         #request mediasite folder information on the "Mediasite Users" folder
         result = self.mediasite.api_client.request("post", "Presentations('"+presentation_id+"')/RemovePublishToGo", "","")
-        
+
         if self.mediasite.experienced_request_errors(result):
             return result
         else:
@@ -120,7 +243,7 @@ class presentation():
     def remove_podcast(self, presentation_id):
         """
         Gathers mediasite root folder ID for use with other functions.
-        
+
         params:
             template_name: name of the template to be found within mediasite
 
@@ -132,7 +255,7 @@ class presentation():
 
         #request mediasite folder information on the "Mediasite Users" folder
         result = self.mediasite.api_client.request("post", "Presentations('"+presentation_id+"')/RemovePodcast", "","")
-        
+
         if self.mediasite.experienced_request_errors(result):
             return result
         else:
@@ -145,7 +268,7 @@ class presentation():
     def remove_video_podcast(self, presentation_id):
         """
         Gathers mediasite root folder ID for use with other functions.
-        
+
         params:
             template_name: name of the template to be found within mediasite
 
@@ -157,7 +280,7 @@ class presentation():
 
         #request mediasite folder information on the "Mediasite Users" folder
         result = self.mediasite.api_client.request("post", "Presentations('"+presentation_id+"')/RemoveVideoPodcast", "","")
-        
+
         if self.mediasite.experienced_request_errors(result):
             return result
         else:

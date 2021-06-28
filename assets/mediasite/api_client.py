@@ -8,85 +8,97 @@ License: MIT - see license.txt
 """
 
 import base64
+import logging
 import json
 import ssl
 import requests
 requests.packages.urllib3.disable_warnings()
 
 class client:
-	def __init__(self, serviceroot, sfapikey, username, password):
-		"""
-		params:
-			serviceroot: root URL to send API requests to
-			sfapikey: Mediasite API key for making requests
-			username: Mediasite API username for making requests
-			password: Mediasite API password for making requests
-		"""
-		self.serviceroot = serviceroot
-		self.sfapikey = sfapikey
-		self.username = username
-		self.password = password
+    def __init__(self, serviceroot, sfapikey, username, password):
+        """
+        params:
+            serviceroot: root URL to send API requests to
+            sfapikey: Mediasite API key for making requests
+            username: Mediasite API username for making requests
+            password: Mediasite API password for making requests
+        """
+        self.serviceroot = serviceroot
+        self.sfapikey = sfapikey
+        self.username = username
+        self.password = password
 
-	#formatting for login credentials needed by Mediasite
-	def get_basic_auth_header_value(self):
-		"""
-		Creates authentication string necessary for making Mediasite API requests
+        self.session = None
 
-		returns:
-			String specifically created for making Mediasite API requests based on
-			useraname and password provided to class.
-		"""
-		return_string  = "Basic "+str(base64.b64encode(bytes(self.username+":"+self.password,"utf-8")).decode("utf-8"))
-		return return_string
+    #formatting for login credentials needed by Mediasite
+    def get_basic_auth_header_value(self):
+        """
+        Creates authentication string necessary for making Mediasite API requests
 
-	def request(self, request_type, resource, odata_attributes, post_vars):
-		"""
-		Performs API request based on parameter data
+        returns:
+            String specifically created for making Mediasite API requests based on
+            useraname and password provided to class.
+        """
+        return_string = "Basic " + \
+            str(base64.b64encode(bytes(self.username + ":" + self.password, "utf-8")).decode("utf-8"))
+        return return_string
 
-		params:
-			request_type: type of request to make, for ex. "get","post", etc.
-			resource:  resource within the API to make requests on, for ex. "Presentations"
-			odata_attributes: odata attributes to use when making the requests
-			post_vars: variables to send when making post requests
-		"""
-		self.resource = resource
-		self.odata_attributes = odata_attributes
+    def close_sessions(self):
+        if self.session:
+            self.session.close()
 
-		#What we're requesting
-		url = self.serviceroot + self.resource + "?" + self.odata_attributes
+    def request(self, request_type, resource, odata_attributes=None, post_vars=None):
+        """
+        Performs API request based on parameter data
 
-		# Header values required for request
-		auth_values = {
-			"sfapikey" : self.sfapikey,
-			"Accept":"application/json",
-			"Authorization":self.get_basic_auth_header_value()
-			}
+        params:
+            request_type: type of request to make, for ex. "get","post", etc.
+            resource:  resource within the API to make requests on, for ex. "Presentations"
+            odata_attributes: odata attributes to use when making the requests
+            post_vars: variables to send when making post requests
+        """
+        if self.session is None:
+            self.session = requests.Session()
 
-		try:
-			if request_type == "get":
-				rsp = requests.get(url, headers=auth_values, verify=False)
+        self.resource = resource
+        self.odata_attributes = f'?{odata_attributes}' if (odata_attributes) else ''
 
-			elif request_type == "post":
-				rsp = requests.post(url, headers=auth_values, json=post_vars, verify=False)
+        #What we're requesting
+        url = self.serviceroot + self.resource + self.odata_attributes
 
-			elif request_type == "put":
-				rsp = requests.put(url, headers=auth_values, json=post_vars, verify=False)
+        # Header values required for request
+        auth_values = {
+            "sfapikey": self.sfapikey,
+            "Accept": "application/json",
+            "Authorization": self.get_basic_auth_header_value()
+        }
 
-			elif request_type == "delete":
-				rsp = requests.delete(url, headers=auth_values, verify=False)
+        req = self.session if self.session else requests
+        try:
+            if request_type == "get":
+                rsp = req.get(url, headers=auth_values, verify=False)
 
-			elif request_type == "patch":
-				rsp = requests.patch(url, headers=auth_values, json=post_vars, verify=False)
+            elif request_type == "post":
+                rsp = req.post(url, headers=auth_values, json=post_vars, verify=False)
 
-			elif request_type == "get stream":
-				rsp = requests.get(resource, headers=auth_values, verify=False, stream=True)
+            elif request_type == "put":
+                rsp = req.put(url, headers=auth_values, json=post_vars, verify=False)
 
-			elif request_type == "get job":
-				rsp = requests.get(resource, headers=auth_values, verify=False)
-			
-			return rsp
+            elif request_type == "delete":
+                rsp = req.delete(url, headers=auth_values, verify=False)
 
-		#catch all exceptions and return them
-		except requests.exceptions.RequestException as e:
+            elif request_type == "patch":
+                rsp = req.patch(url, headers=auth_values, json=post_vars, verify=False)
 
-			return "Error: " + str(e)
+            elif request_type == "get stream":
+                rsp = req.get(resource, headers=auth_values, verify=False, stream=True)
+
+            elif request_type == "get job":
+                rsp = req.get(resource, headers=auth_values, verify=False)
+
+            return rsp
+
+        #catch all exceptions and return them
+        except requests.exceptions.RequestException as e:
+
+            return "Error: " + str(e)
