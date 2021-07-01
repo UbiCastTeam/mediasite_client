@@ -1,4 +1,5 @@
 import logging
+import urllib
 
 
 class user():
@@ -21,6 +22,10 @@ class user():
 
         data = dict()
         route = 'UserProfiles'
+
+        # we encode specials chars ('&' mostly) to prevent server errors)
+        username = urllib.parse.quote(username)
+
         params = f'$filter=UserName eq \'{username}\''
         result = self.mediasite.api_client.request('get', route, params)
 
