@@ -26,6 +26,7 @@ import assets.mediasite.modules.presentation as presentation
 import assets.mediasite.modules.content as content
 import assets.mediasite.modules.user as user
 
+
 class controller():
     def __init__(self, config_data, *args, **kwargs):
         """
@@ -58,8 +59,8 @@ class controller():
             Configured Mediasite web api client object
         """
 
-        return api_client.client(config_data["mediasite_base_url"],
-                                 config_data["mediasite_api_secret"],
+        return api_client.client(config_data["mediasite_api_url"],
+                                 config_data["mediasite_api_key"],
                                  config_data["mediasite_api_user"],
                                  config_data["mediasite_api_password"])
 
